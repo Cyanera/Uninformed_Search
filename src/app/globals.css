@@ -1,0 +1,43 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Light mode only, by design. The state-space diagram is the strongest visual
+   element on every page; everything else stays quiet. */
+:root {
+  color-scheme: light;
+}
+
+html,
+body {
+  background: #ffffff;
+  color: #18181b;
+  -webkit-text-size-adjust: 100%;
+}
+
+/* Keyboard focus must always be obvious — the activity has to be operable
+   without a mouse or a touchscreen. */
+:focus-visible {
+  outline: 2px solid #1d4ed8;
+  outline-offset: 2px;
+}
+
+/* Tabular numbers stop the countdown from jittering as digits change. */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}
