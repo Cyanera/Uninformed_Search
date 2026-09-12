@@ -18,9 +18,22 @@ database, its own session codes and its own student records. Getting your own co
 about ten minutes, and the free tiers of both services are enough for a lecture theatre.
 
 **Step 1 — create a Supabase project.** This is the only step that needs you, because it needs your
-account. Create a free project at [supabase.com](https://supabase.com). From **Project Settings →
-API** copy the project URL, the `anon` key and the `service_role` key; from **Project Settings →
-Database → Connection string → URI** copy the connection string.
+account. Create a free project at [supabase.com](https://supabase.com), and save the database
+password it asks you to choose — you need it again in a moment.
+
+Then collect four values. The dashboard reorganises its settings pages from time to time, so the
+quickest route is the **Connect** button in the top bar: **App Frameworks → Next.js** lists the
+first two already named exactly as this project expects, and **ORMs / Connection string** gives the
+fourth.
+
+| Value | Where |
+| --- | --- |
+| `NEXT_PUBLIC_SUPABASE_URL` | `https://<ref>.supabase.co`, where `<ref>` is the id in your browser's address bar: `supabase.com/dashboard/project/<ref>` |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | the public key — *Publishable key* (`sb_publishable_…`), or *anon public* on older projects |
+| `SUPABASE_SERVICE_ROLE_KEY` | the secret key — *Secret key* (`sb_secret_…`), or *service_role* behind a Reveal button |
+| `SUPABASE_DB_URL` | Connection string → URI. Replace `[YOUR-PASSWORD]`, and use **port 5432** — port 6543 is the transaction pooler and cannot run migrations |
+
+`npm run setup` checks all four and tells you exactly what to change if one is wrong.
 
 **Step 2 — let the setup script do the rest.**
 

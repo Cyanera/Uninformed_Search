@@ -18,6 +18,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import {
+  assertProjectUrl,
   authUrl,
   colors,
   loadEnv,
@@ -33,7 +34,7 @@ import {
 loadEnv();
 
 const TOTAL = 4;
-const projectUrl = required("NEXT_PUBLIC_SUPABASE_URL");
+const projectUrl = assertProjectUrl(required("NEXT_PUBLIC_SUPABASE_URL"));
 const serviceKey = required("SUPABASE_SERVICE_ROLE_KEY");
 const dbUrl = process.env.SUPABASE_DB_URL;
 const headers = serviceHeaders(serviceKey);
@@ -203,8 +204,14 @@ async function main(): Promise<void> {
 ${colors.bad("Could not reach")} ${projectUrl}
 
   Either NEXT_PUBLIC_SUPABASE_URL is wrong, or this machine is offline.
-  The URL is on Project Settings > API, under "Project URL", and looks like
-  https://abcdefghijklm.supabase.co - no trailing path, no trailing slash.
+
+  The dashboard moves this setting around, so the reliable way to find it is
+  your browser's address bar. Open your project and look at:
+
+      https://supabase.com/dashboard/project/${colors.bold("<this-part>")}
+
+  Your API URL is always https://${colors.bold("<this-part>")}.supabase.co
+  Pasting just <this-part> here works too.
 `);
     process.exit(1);
   }

@@ -65,6 +65,44 @@ export function warn(text: string): void {
   console.log(`  ${colors.warn("!")}   ${text}`);
 }
 
+/**
+ * The Supabase dashboard moves things around, and the URL people reach for
+ * first is the one in their address bar - which is the dashboard, not the API.
+ * Catch that here and say exactly what to paste, so .env.local ends up correct
+ * for the app too rather than only for this script.
+ */
+export function assertProjectUrl(value: string): string {
+  const url = value.trim().replace(/\/+$/, "");
+
+  const dashboard = url.match(/supabase\.com\/dashboard\/project\/([a-z0-9]{16,})/i);
+  if (dashboard) {
+    console.error(`
+${colors.bad("That is the dashboard URL, not the project API URL.")}
+
+  You pasted:  ${url}
+  You want:    ${colors.bold(`https://${dashboard[1]}.supabase.co`)}
+
+  Put that second line in .env.local as NEXT_PUBLIC_SUPABASE_URL and re-run.
+`);
+    process.exit(1);
+  }
+
+  // A bare project ref is unambiguous, so accept it rather than being pedantic.
+  if (/^[a-z0-9]{16,}$/i.test(url)) return `https://${url}.supabase.co`;
+
+  if (!/^https?:\/\//i.test(url)) {
+    console.error(`
+${colors.bad("NEXT_PUBLIC_SUPABASE_URL does not look like a URL.")}
+
+  You pasted:  ${url}
+  Expected:    https://<your-project-ref>.supabase.co
+`);
+    process.exit(1);
+  }
+
+  return url;
+}
+
 /** Supabase REST base for a project URL. */
 export function restUrl(projectUrl: string, path: string): string {
   return `${projectUrl.replace(/\/$/, "")}/rest/v1/${path}`;

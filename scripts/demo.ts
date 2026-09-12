@@ -13,11 +13,22 @@
 import { CAMPUS_DELIVERY_ROBOT } from "../src/lib/search/problem";
 import { generateSessionCode } from "../src/lib/codes";
 import { buildDemoStudents, DEMO_DURATION_SECONDS } from "./demoData";
-import { authUrl, colors, loadEnv, note, required, restUrl, serviceHeaders, step, tick } from "./env";
+import {
+  assertProjectUrl,
+  authUrl,
+  colors,
+  loadEnv,
+  note,
+  required,
+  restUrl,
+  serviceHeaders,
+  step,
+  tick,
+} from "./env";
 
 loadEnv();
 
-const projectUrl = required("NEXT_PUBLIC_SUPABASE_URL");
+const projectUrl = assertProjectUrl(required("NEXT_PUBLIC_SUPABASE_URL"));
 const serviceKey = required("SUPABASE_SERVICE_ROLE_KEY");
 const headers = serviceHeaders(serviceKey);
 
