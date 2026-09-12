@@ -41,11 +41,16 @@ fourth.
 git clone https://github.com/Cyanera/Uninformed_Search.git
 cd Uninformed_Search
 npm install
-cp .env.example .env.local     # paste the four values, plus the instructor account you want
-npm run setup                  # applies the schema, seeds the problem, creates your account
+npm run setup                  # asks for the four values, then does everything
 npm run demo                   # optional: a finished demo class to look around in
 npm run dev                    # http://localhost:3000
 ```
+
+On a first run `npm run setup` asks for each value in turn, explains where to find it, checks it
+against your project before accepting it, and writes `.env.local` itself — so there is no file to
+edit by hand and nothing to put in the wrong place. Secrets are not echoed as you type, and the
+file is written owner-only and is git-ignored. `npm run setup -- --reconfigure` runs the questions
+again if a value needs changing.
 
 `npm run setup` applies `0001_init.sql` and `seed.sql` for you, and creates your instructor account
 already confirmed, so no confirmation email stands between you and your first lecture. It is safe to
@@ -270,7 +275,8 @@ npm run dev          # http://localhost:3000
 
 | Command | |
 | --- | --- |
-| `npm run setup` | apply the schema, seed the problem, create the instructor account |
+| `npm run setup` | ask for credentials if needed, apply the schema, seed the problem, create the instructor account |
+| `npm run setup -- --reconfigure` | re-run the credential questions |
 | `npm run demo` | create a finished demo class to look around in |
 | `npm run dev` | development server |
 | `npm run build` / `npm start` | production build and serve |

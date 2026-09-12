@@ -30,14 +30,46 @@ import {
   tick,
   warn,
 } from "./env";
+import { needsWizard, runWizard, writeEnvLocal } from "./wizard";
 
 loadEnv();
 
 const TOTAL = 4;
-const projectUrl = assertProjectUrl(required("NEXT_PUBLIC_SUPABASE_URL"));
-const serviceKey = required("SUPABASE_SERVICE_ROLE_KEY");
-const dbUrl = process.env.SUPABASE_DB_URL;
-const headers = serviceHeaders(serviceKey);
+
+// Filled in by resolveConfig(), from .env.local or from the interactive wizard.
+let projectUrl = "";
+let serviceKey = "";
+let dbUrl: string | undefined;
+let headers: Record<string, string> = {};
+
+/**
+ * On a first run with nothing configured, ask rather than fail. Pasting a
+ * secret into a prompt on your own machine is the only place it belongs.
+ */
+async function resolveConfig(): Promise<void> {
+  // --reconfigure re-runs the prompts even when .env.local is already filled
+  // in, so values can be corrected without hand-editing the file.
+  const forced = process.argv.slice(2).some((a) => a === "--reconfigure" || a === "-i");
+
+  if (forced || (needsWizard() && process.stdin.isTTY)) {
+    const result = await runWizard();
+    const path = writeEnvLocal(result);
+
+    projectUrl = result.projectUrl;
+    serviceKey = result.serviceKey;
+    dbUrl = result.dbUrl || undefined;
+    if (result.instructorEmail) {
+      process.env.INSTRUCTOR_EMAIL = result.instructorEmail;
+      process.env.INSTRUCTOR_PASSWORD = result.instructorPassword;
+    }
+    console.log(`\n  ${colors.ok("OK")}  saved to ${path} ${colors.dim("(owner-only, git-ignored)")}`);
+  } else {
+    projectUrl = assertProjectUrl(required("NEXT_PUBLIC_SUPABASE_URL"));
+    serviceKey = required("SUPABASE_SERVICE_ROLE_KEY");
+    dbUrl = process.env.SUPABASE_DB_URL;
+  }
+  headers = serviceHeaders(serviceKey);
+}
 
 const TEMPLATE_ID = "00000000-0000-4000-8000-000000000001";
 
@@ -192,6 +224,8 @@ async function createInstructor(email: string, password: string): Promise<void> 
 
 async function main(): Promise<void> {
   console.log(colors.bold("\nUninformed Search - setup\n"));
+
+  await resolveConfig();
   note(`project: ${projectUrl}`);
 
   step(1, TOTAL, "Checking the connection");

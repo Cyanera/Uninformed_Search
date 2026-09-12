@@ -71,36 +71,47 @@ export function warn(text: string): void {
  * Catch that here and say exactly what to paste, so .env.local ends up correct
  * for the app too rather than only for this script.
  */
-export function assertProjectUrl(value: string): string {
-  const url = value.trim().replace(/\/+$/, "");
+export type UrlResult = { ok: true; url: string } | { ok: false; message: string };
 
+export function normalizeProjectUrl(value: string): UrlResult {
+  const url = value.trim().replace(/\/+$/, "");
+  if (!url) return { ok: false, message: "Nothing entered." };
+
+  // The likeliest mistake: pasting the URL that is already in the address bar.
   const dashboard = url.match(/supabase\.com\/dashboard\/project\/([a-z0-9]{16,})/i);
   if (dashboard) {
-    console.error(`
-${colors.bad("That is the dashboard URL, not the project API URL.")}
-
-  You pasted:  ${url}
-  You want:    ${colors.bold(`https://${dashboard[1]}.supabase.co`)}
-
-  Put that second line in .env.local as NEXT_PUBLIC_SUPABASE_URL and re-run.
-`);
-    process.exit(1);
+    return {
+      ok: true,
+      url: `https://${dashboard[1]}.supabase.co`,
+    };
   }
 
   // A bare project ref is unambiguous, so accept it rather than being pedantic.
-  if (/^[a-z0-9]{16,}$/i.test(url)) return `https://${url}.supabase.co`;
+  if (/^[a-z0-9]{16,}$/i.test(url)) return { ok: true, url: `https://${url}.supabase.co` };
+
+  if (/^https:\/\/[a-z0-9]{16,}\.supabase\.(co|in)$/i.test(url)) return { ok: true, url };
 
   if (!/^https?:\/\//i.test(url)) {
-    console.error(`
-${colors.bad("NEXT_PUBLIC_SUPABASE_URL does not look like a URL.")}
-
-  You pasted:  ${url}
-  Expected:    https://<your-project-ref>.supabase.co
-`);
-    process.exit(1);
+    return {
+      ok: false,
+      message: `That does not look like a URL or a project ref.\n  Expected something like https://abcdefghijklmnop.supabase.co`,
+    };
   }
 
-  return url;
+  // A self-hosted or custom domain: trust it.
+  return { ok: true, url };
+}
+
+export function assertProjectUrl(value: string): string {
+  const result = normalizeProjectUrl(value);
+  if (!result.ok) {
+    console.error(`\n${colors.bad("NEXT_PUBLIC_SUPABASE_URL is not usable.")}\n  ${result.message}\n`);
+    process.exit(1);
+  }
+  if (result.url !== value.trim().replace(/\/+$/, "")) {
+    note(`using ${result.url}`);
+  }
+  return result.url;
 }
 
 /** Supabase REST base for a project URL. */
