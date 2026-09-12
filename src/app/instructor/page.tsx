@@ -22,9 +22,13 @@ export default async function InstructorHome() {
     data: { user },
   } = await supabase.auth.getUser();
 
+  // Session rows are readable by everyone - that is how a student's browser
+  // watches the timer - so this listing has to filter by owner itself rather
+  // than leaning on row level security.
   const { data: sessionRows } = await supabase
     .from("sessions")
     .select("*")
+    .eq("owner_id", user?.id ?? "")
     .order("created_at", { ascending: false })
     .limit(30);
 

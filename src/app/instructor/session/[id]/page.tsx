@@ -16,8 +16,18 @@ export default async function SessionDashboardPage({ params }: { params: Promise
   const { id } = await params;
   const supabase = await createClient();
 
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
   const { data: sessionData } = await supabase.from("sessions").select("*").eq("id", id).maybeSingle();
   if (!sessionData) notFound();
+
+  // Session rows are world-readable so that students can watch the timer, so
+  // this dashboard has to check ownership itself. Without this, another
+  // instructor could open the URL and see the session shell (the roster stays
+  // empty either way, because that is protected by row level security).
+  if ((sessionData as SessionRow).owner_id !== user?.id) notFound();
 
   const [{ data: participants }, { data: submissions }] = await Promise.all([
     supabase.from("student_participants").select("*").eq("session_id", id).order("joined_at"),

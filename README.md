@@ -127,12 +127,19 @@ Row level security is what actually enforces this, and it is verified against a 
 
 | Role | Can read | Can write |
 | --- | --- | --- |
-| `anon` (student browser) | `sessions` only — that is what keeps the countdown in sync | nothing |
-| `authenticated` (instructor) | own sessions, and the roster and answers belonging to them | own sessions and problems |
+| `anon` (student browser) | `sessions` rows only — that is what keeps the countdown in sync | nothing |
+| `authenticated` (instructor) | `sessions` rows, plus the roster and answers **of sessions they own** | own sessions and problems |
 | `service_role` (server only) | everything | everything |
 
 One student can never read another student's answers, and one instructor can never read another
-instructor's class. The `client_token` is never exposed to any client role or any UI.
+instructor's roster, submissions or attempts. The `client_token` is never exposed to any client
+role or any UI.
+
+The `sessions` row itself is deliberately world-readable: a student's browser must subscribe to it
+to keep the countdown in sync, and it holds nothing private — the code, title, graph and timer
+state are all on the classroom screen already, and canonical answers are never stored anywhere.
+Because of that, the instructor's session list filters by owner in the query rather than relying on
+the policy.
 
 **Known trade-off:** a student who clears their browser storage can rejoin with the same student ID
 and name and pick up their answers. That is deliberate — a phone that loses `localStorage`

@@ -1,8 +1,9 @@
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { fail, ok, readJson, cleanText } from "@/lib/api";
 import { scoreStrategy } from "@/lib/search/scoring";
 import { detectMisconceptions } from "@/lib/search/misconceptions";
-import { ALL_STRATEGIES, type Strategy, type StrategyAnswer } from "@/lib/search/types";
+import { ALL_STRATEGIES, type StateSpaceProblem, type Strategy, type StrategyAnswer } from "@/lib/search/types";
 import { validateProblem } from "@/lib/search/problem";
 import type { SessionRow, SubmissionRow } from "@/lib/types";
 
@@ -41,11 +42,17 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
 
   const body = (await readJson<ControlBody>(request)) ?? {};
 
-  // Row level security already restricts this to sessions the instructor owns;
-  // reading first also gives us the current timer state to work from.
   const { data } = await supabase.from("sessions").select("*").eq("id", id).maybeSingle();
   const session = data as SessionRow | null;
   if (!session) return fail("Session not found.", 404);
+
+  // The SELECT policy on `sessions` is deliberately public - a student's
+  // browser has to read the timer - so reading this row proves nothing about
+  // ownership. Check it explicitly rather than letting the UPDATE policy fail
+  // with a confusing error.
+  if (session.owner_id !== user.id) {
+    return fail("You do not own this session.", 403);
+  }
 
   const now = new Date();
   const nowIso = now.toISOString();
@@ -118,7 +125,12 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
         patch.strategies = strategies;
       }
       if (body.problem !== undefined) {
-        const validation = validateProblem(body.problem as never);
+        // validateProblem assumes a well-formed object, so check the shape
+        // first: a malformed payload must be a 400, not a crash.
+        if (!isProblemShaped(body.problem)) {
+          return fail("The problem must have nodes, edges, a start node and a goal node.");
+        }
+        const validation = validateProblem(body.problem);
         if (!validation.ok) return fail(validation.errors.join(" "));
         patch.problem_snapshot = body.problem;
       }
@@ -138,18 +150,41 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
 
   if (error) return fail(error.message, 500);
 
-  // Revealing results is also the moment we write a durable record of how each
-  // answer scored, so the analysis survives later edits to the problem.
   if (body.action === "reveal") {
-    await persistScores(supabase, updated as SessionRow);
+    await persistScores(updated as SessionRow);
   }
 
   return ok({ session: updated, serverNow: Date.now() });
 }
 
-type SupabaseLike = Awaited<ReturnType<typeof createClient>>;
+/** Narrow structural check before the semantic validation. */
+function isProblemShaped(value: unknown): value is StateSpaceProblem {
+  const p = value as Partial<StateSpaceProblem> | null;
+  return (
+    !!p &&
+    typeof p === "object" &&
+    typeof p.start === "string" &&
+    typeof p.goal === "string" &&
+    Array.isArray(p.nodes) &&
+    Array.isArray(p.edges) &&
+    p.nodes.every((n) => n && typeof (n as { id?: unknown }).id === "string") &&
+    p.edges.every(
+      (e) =>
+        e &&
+        typeof (e as { from?: unknown }).from === "string" &&
+        typeof (e as { to?: unknown }).to === "string" &&
+        typeof (e as { cost?: unknown }).cost === "number",
+    )
+  );
+}
 
-async function persistScores(supabase: SupabaseLike, session: SessionRow) {
+/**
+ * Revealing results is also the moment a durable record of the marking is
+ * written. This runs with the service role on purpose: instructors hold only
+ * SELECT on strategy_submissions, and ownership has already been checked above.
+ */
+async function persistScores(session: SessionRow) {
+  const supabase = createAdminClient();
   const { data } = await supabase.from("strategy_submissions").select("*").eq("session_id", session.id);
   const rows = (data ?? []) as SubmissionRow[];
 
