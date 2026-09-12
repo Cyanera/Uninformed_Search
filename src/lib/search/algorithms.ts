@@ -1,5 +1,6 @@
 import { childrenOf } from "./problem";
 import type {
+  StrategyAnswer,
   FrontierEntry,
   GeneratedChild,
   IdsIteration,
@@ -461,7 +462,7 @@ export function runStrategy(problem: StateSpaceProblem, strategy: Strategy): Sea
 }
 
 /** Canonical answer for a strategy, in the shape students submit. */
-export function canonicalAnswer(problem: StateSpaceProblem, strategy: Strategy) {
+export function canonicalAnswer(problem: StateSpaceProblem, strategy: Strategy): StrategyAnswer {
   const result = runStrategy(problem, strategy);
   if (strategy === "IDS") {
     return {
