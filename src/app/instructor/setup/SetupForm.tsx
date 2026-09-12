@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Button, Field, Input, Notice, Spinner } from "@/components/ui";
 
@@ -21,12 +21,17 @@ export function SetupForm() {
   const [error, setError] = useState<string | null>(null);
   const [steps, setSteps] = useState<string[] | null>(null);
 
-  useEffect(() => {
+  const recheck = useCallback(() => {
+    setStatus(null);
     fetch("/api/instructor/bootstrap", { cache: "no-store" })
       .then((r) => r.json())
       .then(setStatus)
       .catch(() => setStatus(null));
   }, []);
+
+  useEffect(() => {
+    recheck();
+  }, [recheck]);
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -122,15 +127,7 @@ export function SetupForm() {
         </li>
       </ul>
 
-      {!status.schemaReady && !status.canRunMigration && (
-        <Notice tone="warn" title="One value is missing">
-          <p className="mt-1 leading-relaxed">
-            The tables do not exist and this deployment has no direct database connection to create them.
-            Add <code className="font-mono">SUPABASE_DB_URL</code> to the environment — Supabase → Project
-            Settings → Database → Connection string, <strong>port 5432</strong> — and redeploy.
-          </p>
-        </Notice>
-      )}
+      {!status.schemaReady && !status.canRunMigration && <ManualSql onRecheck={recheck} />}
 
       <Field label="Your email" htmlFor="email" hint="This becomes your instructor sign-in.">
         <Input
@@ -166,5 +163,78 @@ export function SetupForm() {
         be used to create accounts on a live classroom.
       </p>
     </form>
+  );
+}
+
+/**
+ * Shown when the app cannot create its own tables. Rather than sending the
+ * instructor off to find two files in a repository and redeploy, the SQL is
+ * served by this deployment and offered with a copy button.
+ */
+function ManualSql({ onRecheck }: { onRecheck: () => void }) {
+  const [sql, setSql] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/instructor/bootstrap/sql")
+      .then((r) => r.text())
+      .then(setSql)
+      .catch(() => setSql(null));
+  }, []);
+
+  async function copy() {
+    if (!sql) return;
+    try {
+      await navigator.clipboard.writeText(sql);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2500);
+    } catch {
+      // Clipboard blocked: the textarea below is still selectable by hand.
+    }
+  }
+
+  return (
+    <div className="space-y-3 rounded border border-warn-line bg-warn-soft p-3">
+      <div>
+        <p className="text-sm font-semibold text-warn">One step to do by hand</p>
+        <p className="mt-1 text-sm leading-relaxed text-ink-muted">
+          This deployment has no direct database connection, so it cannot create the tables itself. Copy
+          the SQL below, paste it into the Supabase <strong>SQL Editor</strong>, and press Run. It takes a
+          few seconds and is safe to run more than once.
+        </p>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        <Button size="sm" variant="primary" onClick={copy} disabled={!sql}>
+          {copied ? "Copied" : "Copy the SQL"}
+        </Button>
+        <a
+          href="https://supabase.com/dashboard/project/_/sql/new"
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex min-h-[36px] items-center rounded border border-line-strong bg-paper px-3 text-sm font-medium hover:bg-canvas"
+        >
+          Open the Supabase SQL Editor ↗
+        </a>
+        <Button size="sm" onClick={onRecheck}>
+          I have run it — check again
+        </Button>
+      </div>
+
+      <textarea
+        readOnly
+        value={sql ?? "Loading…"}
+        onFocus={(e) => e.currentTarget.select()}
+        spellCheck={false}
+        className="h-40 w-full rounded border border-line-strong bg-paper p-2 font-mono text-[11px] leading-snug"
+        aria-label="Setup SQL to paste into the Supabase SQL Editor"
+      />
+
+      <p className="text-xs text-ink-muted">
+        Prefer not to paste SQL? Add <code className="font-mono">SUPABASE_DB_URL</code> to this
+        deployment&rsquo;s environment variables (Supabase → Project Settings → Database → Connection
+        string, port 5432) and redeploy — then this page does it for you.
+      </p>
+    </div>
   );
 }

@@ -31,15 +31,19 @@ now — the next step fills them in.
 `NEXT_PUBLIC_SUPABASE_ANON_KEY` and `SUPABASE_SERVICE_ROLE_KEY` into the project for you, so there
 are no keys to copy by hand. Redeploy once so the app picks them up.
 
-To let the app create its own tables, add one more variable in **Settings → Environment Variables**:
-`SUPABASE_DB_URL`, taken from Supabase → **Project Settings → Database → Connection string → URI**
-(replace `[YOUR-PASSWORD]`, and use **port 5432** — 6543 is the transaction pooler and cannot run
-migrations). Redeploy.
+**3. Open `/instructor/setup` on your new domain.** It tells you what still needs doing and finishes
+it: it creates the tables and security policies, adds the Campus Delivery Robot problem, and creates
+your instructor account already confirmed. That page then closes itself permanently — it refuses to
+do anything once an account exists.
 
-**3. Open `/instructor/setup` on your new domain.** Enter your email and a password. The app creates
-its own tables and security policies, adds the Campus Delivery Robot problem, and creates your
-instructor account already confirmed. That page then closes itself permanently — it refuses to do
-anything once an account exists.
+If the deployment has no direct database connection, the page cannot create the tables itself. It
+then shows you the exact SQL with a copy button and a link to the Supabase SQL Editor: paste, Run,
+press *check again*, and carry on. Nothing to find, nothing to redeploy.
+
+To skip even that, add `SUPABASE_DB_URL` in **Settings → Environment Variables** — Supabase →
+**Project Settings → Database → Connection string → URI**, with `[YOUR-PASSWORD]` replaced and
+**port 5432** (6543 is the transaction pooler and cannot run migrations) — then redeploy, and the
+page does everything on its own.
 
 **4. Teach.** Sign in at `/instructor`, create a session, and project the code. Students go to
 `/join` on your domain, type the code, their name and their student ID, and appear on your board.
