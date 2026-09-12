@@ -20,12 +20,14 @@ import {
   loadEnv,
   note,
   required,
+  requireNodeVersion,
   restUrl,
   serviceHeaders,
   step,
   tick,
 } from "./env";
 
+requireNodeVersion();
 loadEnv();
 
 const projectUrl = assertProjectUrl(required("NEXT_PUBLIC_SUPABASE_URL"));

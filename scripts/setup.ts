@@ -24,6 +24,7 @@ import {
   loadEnv,
   note,
   required,
+  requireNodeVersion,
   restUrl,
   serviceHeaders,
   step,
@@ -32,6 +33,7 @@ import {
 } from "./env";
 import { needsWizard, runWizard, writeEnvLocal } from "./wizard";
 
+requireNodeVersion();
 loadEnv();
 
 const TOTAL = 4;

@@ -49,6 +49,23 @@ export function required(name: string, hint?: string): string {
   return value;
 }
 
+/**
+ * The first thing that can fail on a fresh machine is the Node version, and
+ * the resulting error is always something unrelated-looking. Check it up front.
+ */
+export function requireNodeVersion(minimum = 20): void {
+  const major = Number(process.versions.node.split(".")[0]);
+  if (Number.isFinite(major) && major < minimum) {
+    console.error(`
+${colors.bad(`Node ${minimum} or newer is required.`)}  You are running Node ${process.versions.node}.
+
+  On macOS:   brew install node
+  Or install the LTS build from https://nodejs.org
+`);
+    process.exit(1);
+  }
+}
+
 export function step(n: number, total: number, text: string): void {
   console.log(`\n${colors.bold(`[${n}/${total}]`)} ${text}`);
 }

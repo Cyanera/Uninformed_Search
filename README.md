@@ -37,6 +37,9 @@ fourth.
 
 **Step 2 — let the setup script do the rest.**
 
+Run these in a terminal on your own machine — Terminal on macOS, or PowerShell on Windows.
+You need [Node.js](https://nodejs.org) 20 or newer; check with `node -v`.
+
 ```bash
 git clone https://github.com/Cyanera/Uninformed_Search.git
 cd Uninformed_Search
