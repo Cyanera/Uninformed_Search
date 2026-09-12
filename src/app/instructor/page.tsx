@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createClient } from "@/lib/supabase/server";
 import { CreateSessionForm } from "./CreateSessionForm";
 import { SignOutButton } from "./SignOutButton";
@@ -17,6 +19,10 @@ const STATUS_TONE = {
 } as const;
 
 export default async function InstructorHome() {
+  // A brand new deployment has no database yet. Send people to first-time setup
+  // rather than failing on the first query.
+  if (!isSupabaseConfigured()) redirect("/instructor/setup");
+
   const supabase = await createClient();
   const {
     data: { user },
@@ -25,7 +31,7 @@ export default async function InstructorHome() {
   // Session rows are readable by everyone - that is how a student's browser
   // watches the timer - so this listing has to filter by owner itself rather
   // than leaning on row level security.
-  const { data: sessionRows } = await supabase
+  const { data: sessionRows, error: sessionsError } = await supabase
     .from("sessions")
     .select("*")
     .eq("owner_id", user?.id ?? "")
@@ -36,6 +42,9 @@ export default async function InstructorHome() {
     .from("state_space_problems")
     .select("*")
     .order("created_at", { ascending: true });
+
+  // 42P01 is "relation does not exist": the tables have not been created yet.
+  if (sessionsError?.code === "42P01") redirect("/instructor/setup");
 
   const sessions = (sessionRows ?? []) as SessionRow[];
   const problems = (problemRows ?? []) as ProblemRow[];

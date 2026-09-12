@@ -1,4 +1,5 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
+import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createClient } from "@/lib/supabase/server";
 import { toPublicSession, type ParticipantRow, type SessionRow, type SubmissionRow } from "@/lib/types";
 import { Dashboard } from "./Dashboard";
@@ -13,6 +14,8 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 }
 
 export default async function SessionDashboardPage({ params }: { params: Promise<{ id: string }> }) {
+  if (!isSupabaseConfigured()) redirect("/instructor/setup");
+
   const { id } = await params;
   const supabase = await createClient();
 
