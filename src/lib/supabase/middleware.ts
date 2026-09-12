@@ -31,7 +31,12 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const path = request.nextUrl.pathname;
-  const isInstructorArea = path.startsWith("/instructor") && !path.startsWith("/instructor/login");
+  // /instructor/setup is deliberately open: it is how the first account gets
+  // created, and it refuses to do anything once one exists.
+  const isInstructorArea =
+    path.startsWith("/instructor") &&
+    !path.startsWith("/instructor/login") &&
+    !path.startsWith("/instructor/setup");
 
   if (!user && isInstructorArea) {
     const url = request.nextUrl.clone();

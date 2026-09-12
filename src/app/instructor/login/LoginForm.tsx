@@ -88,6 +88,7 @@ export function LoginForm() {
       >
         {mode === "signin" ? "Create an instructor account" : "I already have an account"}
       </button>
+
     </form>
   );
 }

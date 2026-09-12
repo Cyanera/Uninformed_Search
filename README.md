@@ -13,71 +13,58 @@ which node leaves the frontier next, and why.
 
 ## Run it
 
-There is no shared hosted instance, and there cannot be a useful one: every class needs its own
-database, its own session codes and its own student records. Getting your own copy running takes
-about ten minutes, and the free tiers of both services are enough for a lecture theatre.
+Students take part from their own phones and laptops, so the app has to be reachable over the
+internet: one hosted deployment, plus a database that belongs to you — the answers your students
+submit are your class records. There is no shared instance to borrow, and there could not usefully
+be one. The free tiers of both services are enough for a lecture theatre, and none of this needs a
+terminal.
 
-**Step 1 — create a Supabase project.** This is the only step that needs you, because it needs your
-account. Create a free project at [supabase.com](https://supabase.com), and save the database
-password it asks you to choose — you need it again in a moment.
+**1. Deploy it.**
 
-Then collect four values. The dashboard reorganises its settings pages from time to time, so the
-quickest route is the **Connect** button in the top bar: **App Frameworks → Next.js** lists the
-first two already named exactly as this project expects, and **ORMs / Connection string** gives the
-fourth.
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FCyanera%2FUninformed_Search&env=NEXT_PUBLIC_SUPABASE_URL%2CNEXT_PUBLIC_SUPABASE_ANON_KEY%2CSUPABASE_SERVICE_ROLE_KEY&envDescription=Supabase%20keys%20-%20the%20Supabase%20integration%20can%20fill%20these%20in%20for%20you&envLink=https%3A%2F%2Fgithub.com%2FCyanera%2FUninformed_Search%2Fblob%2Fclaude%2Fecstatic-bardeen-igyyc0%2F.env.example&project-name=uninformed-search&repository-name=uninformed-search)
 
-| Value | Where |
-| --- | --- |
-| `NEXT_PUBLIC_SUPABASE_URL` | `https://<ref>.supabase.co`, where `<ref>` is the id in your browser's address bar: `supabase.com/dashboard/project/<ref>` |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | the public key — *Publishable key* (`sb_publishable_…`), or *anon public* on older projects |
-| `SUPABASE_SERVICE_ROLE_KEY` | the secret key — *Secret key* (`sb_secret_…`), or *service_role* behind a Reveal button |
-| `SUPABASE_DB_URL` | Connection string → URI. Replace `[YOUR-PASSWORD]`, and use **port 5432** — port 6543 is the transaction pooler and cannot run migrations |
+Sign in to Vercel with GitHub and let it import this repository. Skip the environment variables for
+now — the next step fills them in.
 
-`npm run setup` checks all four and tells you exactly what to change if one is wrong.
+**2. Attach a database.** In your new Vercel project open **Storage** (or **Integrations**) and add
+**Supabase**. It creates the database and writes `NEXT_PUBLIC_SUPABASE_URL`,
+`NEXT_PUBLIC_SUPABASE_ANON_KEY` and `SUPABASE_SERVICE_ROLE_KEY` into the project for you, so there
+are no keys to copy by hand. Redeploy once so the app picks them up.
 
-**Step 2 — let the setup script do the rest.**
+To let the app create its own tables, add one more variable in **Settings → Environment Variables**:
+`SUPABASE_DB_URL`, taken from Supabase → **Project Settings → Database → Connection string → URI**
+(replace `[YOUR-PASSWORD]`, and use **port 5432** — 6543 is the transaction pooler and cannot run
+migrations). Redeploy.
 
-Run these in a terminal on your own machine — Terminal on macOS, or PowerShell on Windows.
-You need [Node.js](https://nodejs.org) 20 or newer; check with `node -v`.
+**3. Open `/instructor/setup` on your new domain.** Enter your email and a password. The app creates
+its own tables and security policies, adds the Campus Delivery Robot problem, and creates your
+instructor account already confirmed. That page then closes itself permanently — it refuses to do
+anything once an account exists.
+
+**4. Teach.** Sign in at `/instructor`, create a session, and project the code. Students go to
+`/join` on your domain, type the code, their name and their student ID, and appear on your board.
+
+### Where student answers go
+
+Every answer is written to the `strategy_submissions` table in **your** Supabase project, keyed to
+the student and the strategy, with a timestamp and a late flag. Drafts are saved as students work,
+so the board shows live progress; pressing Submit also appends to `submission_attempts`, which keeps
+the full history of how an answer changed during the activity. Nothing is stored in the browser
+except the student's own identity token, and nothing is lost when a session ends: the records stay
+in your database until you delete them.
+
+### Prefer to set it up from a terminal?
 
 ```bash
 git clone https://github.com/Cyanera/Uninformed_Search.git
 cd Uninformed_Search
 npm install
-npm run setup                  # asks for the four values, then does everything
-npm run demo                   # optional: a finished demo class to look around in
-npm run dev                    # http://localhost:3000
+npm run setup    # asks for each value, explains where to find it, does the rest
+npm run demo     # optional: a finished demo class to look around in
+npm run dev
 ```
 
-On a first run `npm run setup` asks for each value in turn, explains where to find it, checks it
-against your project before accepting it, and writes `.env.local` itself — so there is no file to
-edit by hand and nothing to put in the wrong place. Secrets are not echoed as you type, and the
-file is written owner-only and is git-ignored. `npm run setup -- --reconfigure` runs the questions
-again if a value needs changing.
-
-`npm run setup` applies `0001_init.sql` and `seed.sql` for you, and creates your instructor account
-already confirmed, so no confirmation email stands between you and your first lecture. It is safe to
-re-run. If you would rather not hand it the database password, leave `SUPABASE_DB_URL` empty and it
-will tell you exactly which two files to paste into the SQL Editor instead.
-
-`npm run demo` creates a completed session with eight students who made the mistakes this activity
-is built to catch — one answered BFS depth-first, one stopped the moment `G` was generated, one
-never restarted IDS, one submitted the solution path — so you can see the dashboard, every analytics
-panel and Teach Mode with real data before any student touches it.
-
-**Step 3 — put it online.**
-
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FCyanera%2FUninformed_Search&env=NEXT_PUBLIC_SUPABASE_URL%2CNEXT_PUBLIC_SUPABASE_ANON_KEY%2CSUPABASE_SERVICE_ROLE_KEY&envDescription=Supabase%20API%20keys%20%28Project%20Settings%20%3E%20API%29.%20SUPABASE_SERVICE_ROLE_KEY%20is%20a%20server-only%20secret.&envLink=https%3A%2F%2Fgithub.com%2FCyanera%2FUninformed_Search%2Fblob%2Fclaude%2Fecstatic-bardeen-igyyc0%2F.env.example&project-name=uninformed-search&repository-name=uninformed-search)
-
-Vercel asks for the same three `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` /
-`SUPABASE_SERVICE_ROLE_KEY` values you already put in `.env.local`. Deploy without them and the app
-builds but every page that touches the database fails.
-
-One last thing in Supabase: set **Authentication → URL Configuration → Site URL** to your Vercel
-domain, so instructor sign-in redirects land in the right place.
-
-You are ready. Sign in at `/instructor`, create a session, project the code, and students join at
-`/join`.
+Needs [Node.js](https://nodejs.org) 20 or newer.
 
 ---
 
