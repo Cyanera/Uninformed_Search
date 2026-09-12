@@ -1,12 +1,20 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { resolveSupabaseUrl } from "./config";
 
 /** Server client bound to the instructor's auth cookies. */
 export async function createClient() {
   const cookieStore = await cookies();
 
+  const url = resolveSupabaseUrl(process.env.NEXT_PUBLIC_SUPABASE_URL);
+  if (!url) {
+    throw new Error(
+      "This deployment has no valid NEXT_PUBLIC_SUPABASE_URL. Open /api/health to see what is wrong.",
+    );
+  }
+
   return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    url,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {

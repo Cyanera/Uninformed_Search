@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { cleanText, fail, ok, readJson } from "@/lib/api";
 import { MIGRATION_SQL, SEED_SQL } from "@/lib/setup/schema.generated";
+import { isTransactionPooler, pgOptions } from "@/lib/setup/connection";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -41,7 +42,7 @@ function databaseUrl(): string | null {
     process.env.POSTGRES_URL,
   ].filter((value): value is string => !!value);
 
-  const usable = candidates.find((value) => !/:6543\//.test(value));
+  const usable = candidates.find((value) => !isTransactionPooler(value));
   return usable ?? null;
 }
 
@@ -149,11 +150,7 @@ export async function POST(request: Request) {
     }
 
     const { Client } = await import("pg");
-    const client = new Client({
-      connectionString: dbUrl,
-      ssl: { rejectUnauthorized: false },
-      connectionTimeoutMillis: 20_000,
-    });
+    const client = new Client(pgOptions(dbUrl));
 
     try {
       await client.connect();
@@ -173,7 +170,7 @@ export async function POST(request: Request) {
       const dbUrl = databaseUrl();
       if (dbUrl) {
         const { Client } = await import("pg");
-        const client = new Client({ connectionString: dbUrl, ssl: { rejectUnauthorized: false } });
+        const client = new Client(pgOptions(dbUrl));
         try {
           await client.connect();
           await client.query(SEED_SQL);

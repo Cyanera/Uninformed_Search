@@ -13,7 +13,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "generate:schema": "tsx scripts/generate-schema.ts"
+    "generate:schema": "tsx scripts/generate-schema.ts",
+    "test:e2e": "bash tests/e2e/run.sh"
   },
   "dependencies": {
     "@supabase/ssr": "^0.7.0",

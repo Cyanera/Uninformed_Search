@@ -32,6 +32,7 @@ import {
   warn,
 } from "./env";
 import { needsWizard, runWizard, writeEnvLocal } from "./wizard";
+import { isTransactionPooler, pgOptions } from "../src/lib/setup/connection";
 
 requireNodeVersion();
 loadEnv();
@@ -138,21 +139,14 @@ async function applySqlDirectly(): Promise<boolean> {
 
   // The transaction pooler multiplexes statements across connections, which
   // breaks a multi-statement DDL script. Migrations need 5432, not 6543.
-  if (/:6543\//.test(dbUrl)) {
+  if (isTransactionPooler(dbUrl)) {
     warn("SUPABASE_DB_URL points at the transaction pooler (port 6543), which cannot run migrations.");
     note("Use the Direct connection or the Session pooler - both on port 5432 - and re-run.");
     throw new Error("Wrong connection string for applying a schema.");
   }
 
   const { Client } = await import("pg");
-  // Supabase requires TLS; a local Postgres usually has none, and forcing it
-  // there fails the connection outright.
-  const local = /@(localhost|127\.0\.0\.1|\[::1\])[:/]/.test(dbUrl) || /sslmode=disable/.test(dbUrl);
-  const client = new Client({
-    connectionString: dbUrl,
-    ssl: local ? undefined : { rejectUnauthorized: false },
-    connectionTimeoutMillis: 15_000,
-  });
+  const client = new Client(pgOptions(dbUrl));
 
   try {
     await client.connect();

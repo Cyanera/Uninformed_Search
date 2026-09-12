@@ -22,6 +22,13 @@ export function useLiveSession(
   const [, setTick] = useState(0);
   const offsetRef = useRef(initialServerNow - Date.now());
 
+  // The instructor's own actions re-render the server component with a fresh
+  // session; without this the hook would keep showing the state it mounted
+  // with until the next poll, so a button press looked like it did nothing.
+  useEffect(() => {
+    setSession(initialSession);
+  }, [initialSession]);
+
   useEffect(() => {
     const supabase = createClient();
     const channel = supabase

@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { resolveSupabaseUrlDetailed } from "./config";
 
 /**
  * Service-role client. SERVER ONLY.
@@ -9,16 +10,16 @@ import { createClient } from "@supabase/supabase-js";
  * needs write access to any table.
  */
 export function createAdminClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const resolved = resolveSupabaseUrlDetailed(process.env.NEXT_PUBLIC_SUPABASE_URL);
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-  if (!url || !key) {
+  if (!resolved.url || !key) {
     throw new Error(
-      "Supabase is not configured. Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (see .env.example).",
+      `Supabase is not configured. ${resolved.note ?? ""} Open /api/health for a full report.`.trim(),
     );
   }
 
-  return createClient(url, key, {
+  return createClient(resolved.url, key, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 }
