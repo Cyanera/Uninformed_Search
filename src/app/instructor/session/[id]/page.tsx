@@ -23,6 +23,8 @@ export default async function SessionDashboardPage({ params }: { params: Promise
     data: { user },
   } = await supabase.auth.getUser();
 
+  if (!user) redirect(`/instructor/login?next=/instructor/session/${id}`);
+
   const { data: sessionData } = await supabase.from("sessions").select("*").eq("id", id).maybeSingle();
   if (!sessionData) notFound();
 

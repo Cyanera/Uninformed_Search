@@ -28,6 +28,10 @@ export default async function InstructorHome() {
     data: { user },
   } = await supabase.auth.getUser();
 
+  // The guard lives here rather than in middleware: a page that cannot
+  // authenticate fails alone, instead of taking every route down with it.
+  if (!user) redirect("/instructor/login");
+
   // Session rows are readable by everyone - that is how a student's browser
   // watches the timer - so this listing has to filter by owner itself rather
   // than leaning on row level security.

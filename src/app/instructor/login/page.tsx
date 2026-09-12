@@ -1,10 +1,31 @@
 import { Suspense } from "react";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { LoginForm } from "./LoginForm";
+import { createClient } from "@/lib/supabase/server";
+import { isSupabaseConfigured } from "@/lib/supabase/config";
 
+export const dynamic = "force-dynamic";
 export const metadata = { title: "Instructor sign in" };
 
-export default function LoginPage() {
+async function alreadySignedIn(): Promise<boolean> {
+  if (!isSupabaseConfigured()) return false;
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    return !!user;
+  } catch {
+    // Unreachable project: show the form, which explains the failure.
+    return false;
+  }
+}
+
+export default async function LoginPage() {
+  // redirect() signals by throwing, so it must never sit inside the try above.
+  if (await alreadySignedIn()) redirect("/instructor");
+
   return (
     <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-6 py-12">
       <h1 className="text-2xl font-semibold tracking-tight">Instructor sign in</h1>
