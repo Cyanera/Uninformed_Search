@@ -17,28 +17,46 @@ There is no shared hosted instance, and there cannot be a useful one: every clas
 database, its own session codes and its own student records. Getting your own copy running takes
 about ten minutes, and the free tiers of both services are enough for a lecture theatre.
 
-**Step 1 — create the database (do this first).** Create a free project at
-[supabase.com](https://supabase.com). Open **SQL Editor** and run
-[`supabase/migrations/0001_init.sql`](supabase/migrations/0001_init.sql), then
-[`supabase/seed.sql`](supabase/seed.sql). Keep **Project Settings → API** open; you need three
-values from it in a moment.
+**Step 1 — create a Supabase project.** This is the only step that needs you, because it needs your
+account. Create a free project at [supabase.com](https://supabase.com). From **Project Settings →
+API** copy the project URL, the `anon` key and the `service_role` key; from **Project Settings →
+Database → Connection string → URI** copy the connection string.
 
-**Step 2 — deploy.**
+**Step 2 — let the setup script do the rest.**
+
+```bash
+git clone https://github.com/Cyanera/Uninformed_Search.git
+cd Uninformed_Search
+npm install
+cp .env.example .env.local     # paste the four values, plus the instructor account you want
+npm run setup                  # applies the schema, seeds the problem, creates your account
+npm run demo                   # optional: a finished demo class to look around in
+npm run dev                    # http://localhost:3000
+```
+
+`npm run setup` applies `0001_init.sql` and `seed.sql` for you, and creates your instructor account
+already confirmed, so no confirmation email stands between you and your first lecture. It is safe to
+re-run. If you would rather not hand it the database password, leave `SUPABASE_DB_URL` empty and it
+will tell you exactly which two files to paste into the SQL Editor instead.
+
+`npm run demo` creates a completed session with eight students who made the mistakes this activity
+is built to catch — one answered BFS depth-first, one stopped the moment `G` was generated, one
+never restarted IDS, one submitted the solution path — so you can see the dashboard, every analytics
+panel and Teach Mode with real data before any student touches it.
+
+**Step 3 — put it online.**
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FCyanera%2FUninformed_Search&env=NEXT_PUBLIC_SUPABASE_URL%2CNEXT_PUBLIC_SUPABASE_ANON_KEY%2CSUPABASE_SERVICE_ROLE_KEY&envDescription=Supabase%20API%20keys%20%28Project%20Settings%20%3E%20API%29.%20SUPABASE_SERVICE_ROLE_KEY%20is%20a%20server-only%20secret.&envLink=https%3A%2F%2Fgithub.com%2FCyanera%2FUninformed_Search%2Fblob%2Fclaude%2Fecstatic-bardeen-igyyc0%2F.env.example&project-name=uninformed-search&repository-name=uninformed-search)
 
-Vercel will ask for the three Supabase values from step 1. Deploy without them and the app will
-build but every page that touches the database will fail.
+Vercel asks for the same three `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` /
+`SUPABASE_SERVICE_ROLE_KEY` values you already put in `.env.local`. Deploy without them and the app
+builds but every page that touches the database fails.
 
-**Step 3 — create your instructor account.** Open `/instructor/login` on your new domain and choose
-*Create an instructor account*. To skip email confirmation, turn off **Confirm email** under
-Supabase → **Authentication → Providers → Email**. Then set **Authentication → URL Configuration →
-Site URL** to your Vercel domain so sign-in redirects land in the right place.
+One last thing in Supabase: set **Authentication → URL Configuration → Site URL** to your Vercel
+domain, so instructor sign-in redirects land in the right place.
 
-You are ready: create a session, project the code, and students join at `/join`.
-
-Prefer to run it on your own laptop for a dry run? See [Setup](#setup) below — `npm install`,
-fill in `.env.local`, `npm run dev`.
+You are ready. Sign in at `/instructor`, create a session, project the code, and students join at
+`/join`.
 
 ---
 
@@ -205,12 +223,13 @@ SUPABASE_SERVICE_ROLE_KEY=<service_role / secret key>
 
 ### 3. Create the database
 
-In the Supabase dashboard open **SQL Editor** and run, in order:
+```bash
+npm run setup
+```
 
-1. `supabase/migrations/0001_init.sql`
-2. `supabase/seed.sql`
-
-Both are safe to re-run. Or with the Supabase CLI:
+With `SUPABASE_DB_URL` set in `.env.local`, this applies the schema and the seed for you and is safe
+to re-run. Without it, the script prints the two files to paste into the Supabase **SQL Editor**:
+`supabase/migrations/0001_init.sql` then `supabase/seed.sql`. With the Supabase CLI instead:
 
 ```bash
 supabase db push
@@ -225,9 +244,10 @@ The migration enables row level security, grants each role the minimum it needs,
 
 ### 4. Create an instructor account
 
-Run the app, open `/instructor/login` and choose **Create an instructor account**. To skip email
-confirmation for a classroom setup, either turn off *Confirm email* under
-**Authentication → Providers → Email**, or add the user directly under **Authentication → Users**.
+Set `INSTRUCTOR_EMAIL` and `INSTRUCTOR_PASSWORD` in `.env.local` and `npm run setup` creates the
+account already confirmed. Otherwise open `/instructor/login` and choose **Create an instructor
+account** — then either turn off *Confirm email* under **Authentication → Providers → Email**, or
+confirm the user under **Authentication → Users**.
 
 ### 5. Run
 
@@ -237,6 +257,8 @@ npm run dev          # http://localhost:3000
 
 | Command | |
 | --- | --- |
+| `npm run setup` | apply the schema, seed the problem, create the instructor account |
+| `npm run demo` | create a finished demo class to look around in |
 | `npm run dev` | development server |
 | `npm run build` / `npm start` | production build and serve |
 | `npm test` | run the test suite |
