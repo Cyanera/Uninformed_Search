@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { isMissingTableError } from "@/lib/supabase/errors";
 import { createClient } from "@/lib/supabase/server";
 import { CreateSessionForm } from "./CreateSessionForm";
 import { SignOutButton } from "./SignOutButton";
@@ -47,8 +48,9 @@ export default async function InstructorHome() {
     .select("*")
     .order("created_at", { ascending: true });
 
-  // 42P01 is "relation does not exist": the tables have not been created yet.
-  if (sessionsError?.code === "42P01") redirect("/instructor/setup");
+  // The tables have not been created yet: send them to setup, which hands over
+  // the SQL, rather than showing a database error on the home page.
+  if (isMissingTableError(sessionsError)) redirect("/instructor/setup");
 
   const sessions = (sessionRows ?? []) as SessionRow[];
   const problems = (problemRows ?? []) as ProblemRow[];

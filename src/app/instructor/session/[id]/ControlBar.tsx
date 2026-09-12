@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Badge, Button, Notice } from "@/components/ui";
 import { Countdown } from "@/components/Countdown";
+import { JoinQr, JoinQrProjector } from "@/components/JoinQr";
 import type { TimerState } from "@/lib/timer";
 import type { PublicSession } from "@/lib/types";
 
@@ -27,6 +28,7 @@ export function ControlBar({
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [confirmEnd, setConfirmEnd] = useState(false);
+  const [showQr, setShowQr] = useState(false);
 
   async function act(action: string, extra: Record<string, unknown> = {}) {
     setBusy(action);
@@ -55,10 +57,16 @@ export function ControlBar({
     <section className="mt-4 rounded border border-line bg-paper">
       <div className="grid gap-6 p-4 sm:grid-cols-[auto,1fr] sm:items-start">
         <div className="flex flex-wrap items-start gap-6">
-          <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-ink-muted">Session code</p>
-            <p className="font-mono text-4xl font-semibold tracking-[0.2em] sm:text-5xl">{session.code}</p>
-            <p className="mt-1 text-xs text-ink-muted">Students join at /join</p>
+          <div className="flex items-start gap-4">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide text-ink-muted">Session code</p>
+              <p className="font-mono text-4xl font-semibold tracking-[0.2em] sm:text-5xl">{session.code}</p>
+              <Button size="sm" className="mt-2 no-print" onClick={() => setShowQr(true)}>
+                Show join QR
+              </Button>
+            </div>
+            {/* Students scan this instead of typing anything but their name. */}
+            <JoinQr code={session.code} size={118} showUrl={false} className="no-print" />
           </div>
 
           <div>
@@ -140,6 +148,8 @@ export function ControlBar({
           {error && <Notice tone="warn">{error}</Notice>}
         </div>
       </div>
+
+      {showQr && <JoinQrProjector code={session.code} onClose={() => setShowQr(false)} />}
 
       {confirmEnd && (
         <div

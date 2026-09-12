@@ -11,7 +11,11 @@ export function JoinForm() {
   const router = useRouter();
   const params = useSearchParams();
 
-  const [code, setCode] = useState(normalizeSessionCode(params.get("code") ?? ""));
+  const codeFromLink = normalizeSessionCode(params.get("code") ?? "");
+  const [code, setCode] = useState(codeFromLink);
+  // A student who scanned the QR already has the code; asking for it again is
+  // just another thing to mistype.
+  const [editingCode, setEditingCode] = useState(!codeFromLink);
   const [name, setName] = useState("");
   const [studentNumber, setStudentNumber] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -44,23 +48,39 @@ export function JoinForm() {
 
   return (
     <form onSubmit={submit} className="mt-8 space-y-5">
-      <Field label="Session code" htmlFor="code" hint="Five characters, shown on the classroom screen.">
-        <Input
-          id="code"
-          name="code"
-          value={code}
-          onChange={(e) => setCode(normalizeSessionCode(e.target.value))}
-          autoCapitalize="characters"
-          autoComplete="off"
-          autoCorrect="off"
-          spellCheck={false}
-          inputMode="text"
-          maxLength={8}
-          required
-          className="font-mono text-2xl tracking-[0.3em]"
-          placeholder="ABCDE"
-        />
-      </Field>
+      {editingCode ? (
+        <Field label="Session code" htmlFor="code" hint="Five characters, shown on the classroom screen.">
+          <Input
+            id="code"
+            name="code"
+            value={code}
+            onChange={(e) => setCode(normalizeSessionCode(e.target.value))}
+            autoCapitalize="characters"
+            autoComplete="off"
+            autoCorrect="off"
+            spellCheck={false}
+            inputMode="text"
+            maxLength={8}
+            required
+            className="font-mono text-2xl tracking-[0.3em]"
+            placeholder="ABCDE"
+          />
+        </Field>
+      ) : (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded border border-accent-line bg-accent-soft px-3 py-2">
+          <span className="text-sm text-ink-muted">
+            Joining session{" "}
+            <span className="font-mono text-base font-semibold text-accent">{code}</span>
+          </span>
+          <button
+            type="button"
+            onClick={() => setEditingCode(true)}
+            className="text-xs text-accent underline-offset-2 hover:underline"
+          >
+            Change
+          </button>
+        </div>
+      )}
 
       <Field label="Your name" htmlFor="name">
         <Input

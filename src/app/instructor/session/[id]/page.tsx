@@ -1,5 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { isMissingTableError } from "@/lib/supabase/errors";
 import { createClient } from "@/lib/supabase/server";
 import { toPublicSession, type ParticipantRow, type SessionRow, type SubmissionRow } from "@/lib/types";
 import { Dashboard } from "./Dashboard";
@@ -25,7 +26,13 @@ export default async function SessionDashboardPage({ params }: { params: Promise
 
   if (!user) redirect(`/instructor/login?next=/instructor/session/${id}`);
 
-  const { data: sessionData } = await supabase.from("sessions").select("*").eq("id", id).maybeSingle();
+  const { data: sessionData, error: sessionError } = await supabase
+    .from("sessions")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (isMissingTableError(sessionError)) redirect("/instructor/setup");
   if (!sessionData) notFound();
 
   // Session rows are world-readable so that students can watch the timer, so
