@@ -11,10 +11,11 @@ export const dynamic = "force-dynamic";
  * refresh. Only ever returns rows belonging to the authenticated participant.
  */
 export async function GET(request: Request) {
-  const url = new URL(request.url);
+  // The token is a credential, so it travels in headers rather than in the
+  // query string, where it would end up in access logs and browser history.
   const auth = await authenticateParticipant(
-    url.searchParams.get("participantId"),
-    url.searchParams.get("clientToken"),
+    request.headers.get("x-participant-id"),
+    request.headers.get("x-participant-token"),
   );
   if (!auth.ok) return fail(auth.error, auth.status);
 

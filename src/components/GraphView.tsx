@@ -102,7 +102,10 @@ export function GraphView({
           {/* Edges first so nodes always sit on top of them. */}
           {layout.edges.map((edge) => {
             const onPath = pathEdges.has(`${edge.from}>${edge.to}`);
-            const seg = trimSegment(edge.x1, edge.y1, edge.x2, edge.y2, r + 2, r + 8);
+            // Stop the arrow short of a node that carries a name above it,
+            // so the head never lands on top of the text.
+            const targetLabelled = !!layout.byId[edge.to]?.label && hasChildren(problem, edge.to);
+            const seg = trimSegment(edge.x1, edge.y1, edge.x2, edge.y2, r + 2, r + (targetLabelled ? 22 : 8));
             return (
               <g key={`${edge.from}-${edge.to}`}>
                 <line
@@ -172,22 +175,44 @@ export function GraphView({
                   {node.id}
                 </text>
 
+                {/* Friendly names sit ABOVE a node that has children, because
+                    the space below it belongs to its outgoing edges. Leaves
+                    keep their name underneath, where there is nothing to hit. */}
                 {node.isStart && (
-                  <text x={node.x} y={node.y - r - 12} textAnchor="middle" fontSize={10} fontWeight={700} fill="#1D4ED8">
+                  <text
+                    x={node.x}
+                    y={node.y - r - (node.label && hasChildren(problem, node.id) ? 25 : 12)}
+                    textAnchor="middle"
+                    fontSize={10}
+                    fontWeight={700}
+                    fill="#1D4ED8"
+                  >
                     START
                   </text>
                 )}
                 {node.isGoal && (
-                  <text x={node.x} y={node.y - r - 12} textAnchor="middle" fontSize={10} fontWeight={700} fill="#047857">
+                  <text
+                    x={node.x}
+                    y={node.y - r - (node.label && hasChildren(problem, node.id) ? 25 : 12)}
+                    textAnchor="middle"
+                    fontSize={10}
+                    fontWeight={700}
+                    fill="#047857"
+                  >
                     GOAL
                   </text>
                 )}
 
-                {node.label && (
-                  <text x={node.x} y={node.y + r + 15} textAnchor="middle" fontSize={10} fill="#8A8A93">
-                    {node.label}
-                  </text>
-                )}
+                {node.label &&
+                  (hasChildren(problem, node.id) ? (
+                    <text x={node.x} y={node.y - r - 11} textAnchor="middle" fontSize={10} fill="#8A8A93">
+                      {node.label}
+                    </text>
+                  ) : (
+                    <text x={node.x} y={node.y + r + 15} textAnchor="middle" fontSize={10} fill="#8A8A93">
+                      {node.label}
+                    </text>
+                  ))}
 
                 {ordinal >= 0 && (
                   <g>
@@ -219,6 +244,10 @@ export function GraphView({
       )}
     </figure>
   );
+}
+
+function hasChildren(problem: StateSpaceProblem, id: NodeId): boolean {
+  return childrenOf(problem, id).length > 0;
 }
 
 /** Spells out the child ordering, so nobody has to infer it from the picture. */

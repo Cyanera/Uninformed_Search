@@ -193,6 +193,45 @@ create policy attempts_owner_read on public.submission_attempts
   ));
 
 -- ===========================================================================
+-- Table privileges
+--
+-- Row level security is the real gate, but the grants are kept minimal so the
+-- anon key cannot even attempt a write, and so this migration does not depend
+-- on whatever default privileges happen to be configured on the project.
+-- ===========================================================================
+grant usage on schema public to anon, authenticated;
+
+-- Students read the session row and nothing else. That is what keeps the
+-- countdown in sync; every student write goes through a route handler.
+revoke all on public.sessions,
+              public.state_space_problems,
+              public.student_participants,
+              public.strategy_submissions,
+              public.submission_attempts
+  from anon, authenticated;
+
+grant select on public.sessions to anon;
+
+-- Instructors manage their own sessions and problems, and read the roster.
+-- Which rows they actually see is decided by the policies above.
+grant select, insert, update, delete on public.sessions             to authenticated;
+grant select, insert, update, delete on public.state_space_problems to authenticated;
+grant select on public.student_participants to authenticated;
+grant select on public.strategy_submissions to authenticated;
+grant select on public.submission_attempts  to authenticated;
+
+-- The service role bypasses RLS; it is used only by server-side route handlers
+-- that have already validated a participant's client_token. Supabase creates
+-- this role with BYPASSRLS. On a self-hosted Postgres, make sure it has it
+-- (alter role service_role bypassrls) or every student write will be refused.
+grant all on public.sessions,
+             public.state_space_problems,
+             public.student_participants,
+             public.strategy_submissions,
+             public.submission_attempts
+  to service_role;
+
+-- ===========================================================================
 -- Realtime
 -- ===========================================================================
 -- Students subscribe to `sessions` (timer + reveal flag).

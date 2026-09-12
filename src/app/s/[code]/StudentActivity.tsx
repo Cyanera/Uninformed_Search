@@ -57,10 +57,13 @@ export function StudentActivity({
 
     (async () => {
       try {
-        const res = await fetch(
-          `/api/submission?participantId=${stored.participantId}&clientToken=${stored.clientToken}`,
-          { cache: "no-store" },
-        );
+        const res = await fetch("/api/submission", {
+          cache: "no-store",
+          headers: {
+            "x-participant-id": stored.participantId,
+            "x-participant-token": stored.clientToken,
+          },
+        });
         if (res.status === 401) {
           clearIdentity();
           router.replace(`/join?code=${session.code}`);

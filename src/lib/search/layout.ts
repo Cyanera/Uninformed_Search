@@ -47,7 +47,7 @@ export interface GraphLayout {
 }
 
 const MARGIN_X = 44;
-const MARGIN_Y = 46;
+const MARGIN_Y = 62; // room for a START/GOAL tag stacked above a friendly name
 const COL_WIDTH = 112;
 const ROW_HEIGHT = 116;
 const NODE_RADIUS = 22;
