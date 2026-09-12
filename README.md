@@ -11,6 +11,37 @@ which node leaves the frontier next, and why.
 
 ---
 
+## Run it
+
+There is no shared hosted instance, and there cannot be a useful one: every class needs its own
+database, its own session codes and its own student records. Getting your own copy running takes
+about ten minutes, and the free tiers of both services are enough for a lecture theatre.
+
+**Step 1 — create the database (do this first).** Create a free project at
+[supabase.com](https://supabase.com). Open **SQL Editor** and run
+[`supabase/migrations/0001_init.sql`](supabase/migrations/0001_init.sql), then
+[`supabase/seed.sql`](supabase/seed.sql). Keep **Project Settings → API** open; you need three
+values from it in a moment.
+
+**Step 2 — deploy.**
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FCyanera%2FUninformed_Search&env=NEXT_PUBLIC_SUPABASE_URL%2CNEXT_PUBLIC_SUPABASE_ANON_KEY%2CSUPABASE_SERVICE_ROLE_KEY&envDescription=Supabase%20API%20keys%20%28Project%20Settings%20%3E%20API%29.%20SUPABASE_SERVICE_ROLE_KEY%20is%20a%20server-only%20secret.&envLink=https%3A%2F%2Fgithub.com%2FCyanera%2FUninformed_Search%2Fblob%2Fclaude%2Fecstatic-bardeen-igyyc0%2F.env.example&project-name=uninformed-search&repository-name=uninformed-search)
+
+Vercel will ask for the three Supabase values from step 1. Deploy without them and the app will
+build but every page that touches the database will fail.
+
+**Step 3 — create your instructor account.** Open `/instructor/login` on your new domain and choose
+*Create an instructor account*. To skip email confirmation, turn off **Confirm email** under
+Supabase → **Authentication → Providers → Email**. Then set **Authentication → URL Configuration →
+Site URL** to your Vercel domain so sign-in redirects land in the right place.
+
+You are ready: create a session, project the code, and students join at `/join`.
+
+Prefer to run it on your own laptop for a dry run? See [Setup](#setup) below — `npm install`,
+fill in `.env.local`, `npm run dev`.
+
+---
+
 ## What it does
 
 **Students** join from a phone or laptop with a session code, a name and a student ID. No account,
