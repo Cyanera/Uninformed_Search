@@ -202,16 +202,37 @@ async function handleAuth(req, res, url) {
   const path = url.pathname.replace("/auth/v1", "");
 
   if (path.startsWith("/admin/users")) {
+    const id = path.replace("/admin/users", "").replace(/^\//, "").split("?")[0];
+
     if (req.method === "GET") {
-      const { rows } = await client.query("select id, email, created_at from auth.users order by created_at");
+      const { rows } = await client.query(
+        "select id, email, created_at, email_confirmed_at from auth.users order by created_at",
+      );
       return json(res, 200, { users: rows, aud: "authenticated", total: rows.length });
     }
+
     if (req.method === "POST") {
       const body = await readBody(req);
+      // Admin-created users are confirmed on the spot, as GoTrue does with
+      // email_confirm: true.
       const { rows } = await client.query(
-        "insert into auth.users (email, encrypted_password) values ($1,$2) returning id, email, created_at",
-        [body.email, body.password],
+        `insert into auth.users (email, encrypted_password, email_confirmed_at)
+         values ($1,$2,$3) returning id, email, created_at, email_confirmed_at`,
+        [body.email, body.password, body.email_confirm ? new Date().toISOString() : null],
       );
+      return json(res, 200, rows[0]);
+    }
+
+    if (req.method === "PUT" && id) {
+      const body = await readBody(req);
+      const { rows } = await client.query(
+        `update auth.users
+         set encrypted_password = coalesce($2, encrypted_password),
+             email_confirmed_at = case when $3 then now() else email_confirmed_at end
+         where id = $1 returning id, email, created_at, email_confirmed_at`,
+        [id, body.password ?? null, !!body.email_confirm],
+      );
+      if (!rows.length) return json(res, 404, { message: "user not found" });
       return json(res, 200, rows[0]);
     }
   }

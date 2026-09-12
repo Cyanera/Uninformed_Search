@@ -50,15 +50,39 @@ function headers(key: string): Record<string, string> {
   return { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json" };
 }
 
-async function countInstructors(url: string, key: string): Promise<number | null> {
+interface AdminUser {
+  id: string;
+  email?: string;
+  email_confirmed_at?: string | null;
+  confirmed_at?: string | null;
+}
+
+async function listUsers(url: string, key: string): Promise<AdminUser[] | null> {
   try {
     const res = await fetch(`${url}/auth/v1/admin/users?page=1&per_page=200`, { headers: headers(key) });
     if (!res.ok) return null;
-    const body = (await res.json()) as { users?: unknown[] };
-    return (body.users ?? []).length;
+    const body = (await res.json()) as { users?: AdminUser[] };
+    return body.users ?? [];
   } catch {
     return null;
   }
+}
+
+function isUsable(user: AdminUser): boolean {
+  return !!(user.email_confirmed_at || user.confirmed_at);
+}
+
+/**
+ * Only a CONFIRMED account closes setup.
+ *
+ * An account left behind by a sign-up form is waiting on a confirmation email
+ * whose link points at the project's Site URL - localhost, by default - so it
+ * can never be used. Counting it would lock the owner out of the only page that
+ * can rescue them.
+ */
+async function countInstructors(url: string, key: string): Promise<number | null> {
+  const users = await listUsers(url, key);
+  return users === null ? null : users.filter(isUsable).length;
 }
 
 async function schemaReady(): Promise<boolean> {
@@ -185,6 +209,25 @@ export async function POST(request: Request) {
   }
 
   /* ----------------------------------------------------- the instructor */
+  const existing = (await listUsers(url, key))?.find(
+    (u) => u.email?.toLowerCase() === email && !isUsable(u),
+  );
+
+  if (existing) {
+    // Rescue an account stranded by a sign-up confirmation email: confirm it
+    // and set the password to what was just typed here.
+    const res = await fetch(`${url}/auth/v1/admin/users/${existing.id}`, {
+      method: "PUT",
+      headers: headers(key),
+      body: JSON.stringify({ password, email_confirm: true }),
+    });
+    if (!res.ok) {
+      return fail(`The database is ready, but that account could not be confirmed: ${await res.text()}`, 500);
+    }
+    steps.push(`Confirmed your existing account (${email}) and set its password. No email needed.`);
+    return ok({ completed: true, steps, email });
+  }
+
   const res = await fetch(`${url}/auth/v1/admin/users`, {
     method: "POST",
     headers: headers(key),

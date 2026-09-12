@@ -2,9 +2,19 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
+import Link from "next/link";
 import { Button, Field, Input, Notice } from "@/components/ui";
 import { createClient } from "@/lib/supabase/client";
 
+/**
+ * Sign in only.
+ *
+ * There is deliberately no sign-up here. Accounts are created once, on
+ * /instructor/setup, which creates them already confirmed — signing up through
+ * Supabase instead sends a confirmation email whose link points at whatever
+ * Site URL the project happens to have, which is localhost by default. Nobody
+ * should meet that ten minutes before a lecture.
+ */
 export function LoginForm() {
   const router = useRouter();
   const params = useSearchParams();
@@ -12,31 +22,52 @@ export function LoginForm() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [error, setError] = useState<React.ReactNode>(null);
   const [busy, setBusy] = useState(false);
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
     setError(null);
-    setNotice(null);
     setBusy(true);
 
-    const supabase = createClient();
     try {
-      if (mode === "signup") {
-        const { data, error: signUpError } = await supabase.auth.signUp({ email, password });
-        if (signUpError) throw signUpError;
-        if (!data.session) {
-          setNotice("Check your inbox to confirm the address, then sign in.");
-          setMode("signin");
+      const supabase = createClient();
+      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+
+      if (signInError) {
+        const message = signInError.message.toLowerCase();
+
+        if (message.includes("not confirmed")) {
+          setError(
+            <>
+              That account was created through a sign-up form and is waiting on a confirmation email you
+              do not need. Use the email and password you entered on{" "}
+              <Link href="/instructor/setup" className="underline">
+                first-time setup
+              </Link>{" "}
+              instead — that account is already confirmed.
+            </>,
+          );
           return;
         }
-      } else {
-        const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
-        if (signInError) throw signInError;
+
+        if (message.includes("invalid login")) {
+          setError(
+            <>
+              Wrong email or password. If you have not set this app up yet, start at{" "}
+              <Link href="/instructor/setup" className="underline">
+                first-time setup
+              </Link>
+              .
+            </>,
+          );
+          return;
+        }
+
+        setError(signInError.message);
+        return;
       }
+
       router.replace(next);
       router.refresh();
     } catch (e) {
@@ -59,36 +90,22 @@ export function LoginForm() {
         />
       </Field>
 
-      <Field label="Password" htmlFor="password" hint={mode === "signup" ? "At least 6 characters." : undefined}>
+      <Field label="Password" htmlFor="password">
         <Input
           id="password"
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          autoComplete={mode === "signup" ? "new-password" : "current-password"}
+          autoComplete="current-password"
           required
-          minLength={6}
         />
       </Field>
 
       {error && <Notice tone="warn">{error}</Notice>}
-      {notice && <Notice tone="accent">{notice}</Notice>}
 
       <Button type="submit" variant="primary" size="lg" className="w-full" disabled={busy}>
-        {busy ? "Working…" : mode === "signin" ? "Sign in" : "Create account"}
+        {busy ? "Signing in…" : "Sign in"}
       </Button>
-
-      <button
-        type="button"
-        onClick={() => {
-          setMode(mode === "signin" ? "signup" : "signin");
-          setError(null);
-        }}
-        className="w-full text-sm text-accent underline-offset-2 hover:underline"
-      >
-        {mode === "signin" ? "Create an instructor account" : "I already have an account"}
-      </button>
-
     </form>
   );
 }
