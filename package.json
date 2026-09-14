@@ -14,7 +14,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "generate:schema": "tsx scripts/generate-schema.ts",
-    "test:e2e": "bash tests/e2e/run.sh"
+    "test:e2e": "bash tests/e2e/run.sh",
+    "test:quiz": "bash tests/e2e/quiz.sh"
   },
   "dependencies": {
     "@supabase/ssr": "^0.7.0",

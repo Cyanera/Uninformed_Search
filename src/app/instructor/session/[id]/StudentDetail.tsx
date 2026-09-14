@@ -5,6 +5,7 @@ import { formatPercent } from "@/lib/search/scoring";
 import { STRATEGY_NAMES } from "@/lib/search/types";
 import { formatDuration } from "@/lib/timer";
 import type { StudentResult } from "@/lib/analysis";
+import { DEFAULT_TOTAL_MARKS, formatMarks, gradeStudent } from "@/lib/grading";
 import type { PublicSession, SubmissionRow } from "@/lib/types";
 import { SequenceDiff } from "./SequenceDiff";
 
@@ -41,6 +42,13 @@ export function StudentDetail({
         </div>
 
         <dl className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
+          <div>
+            <dt className="text-xs uppercase tracking-wide text-ink-muted">Mark</dt>
+            <dd className="tabular text-2xl font-semibold">
+              {formatMarks(gradeStudent(result).marks)}
+              <span className="text-base font-normal text-ink-muted"> / {DEFAULT_TOTAL_MARKS}</span>
+            </dd>
+          </div>
           <div>
             <dt className="text-xs uppercase tracking-wide text-ink-muted">Strategies exact</dt>
             <dd className="tabular text-2xl font-semibold">

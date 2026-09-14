@@ -5,6 +5,7 @@ import { formatPercent, VERDICT_LABEL, type Verdict } from "@/lib/search/scoring
 import { formatDuration } from "@/lib/timer";
 import type { ClassStats, StudentResult } from "@/lib/analysis";
 import type { PublicSession } from "@/lib/types";
+import { Marks } from "./Marks";
 
 /**
  * Class-wide analytics.
@@ -44,6 +45,9 @@ export function Analytics({
 
   return (
     <div className="space-y-6">
+      {/* The marks sheet comes first: it is what the instructor came for. */}
+      <Marks session={session} results={results} onSelect={onSelect} />
+
       {/* A. Accuracy by strategy ------------------------------------------ */}
       <Card
         title="Accuracy by strategy"

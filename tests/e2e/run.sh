@@ -1,6 +1,4 @@
 #!/bin/bash
-# Full end-to-end run: throwaway PostgreSQL + a fake Supabase + the real app
-# driven in a browser. See tests/e2e/run.mjs for what it checks.
 cd /home/user/Uninformed_Search
 fuser -k 8811/tcp 3000/tcp 2>/dev/null; sleep 1
 /usr/lib/postgresql/16/bin/pg_ctl -D /var/lib/pge2e/data -w stop >/dev/null 2>&1
