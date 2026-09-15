@@ -81,22 +81,19 @@ export function formatMarks(value: number): string {
 
 /* ------------------------------------------------------------------ export */
 
-function csvCell(value: unknown): string {
-  const text = value === null || value === undefined ? "" : String(value);
-  return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
-}
+export type CellValue = string | number | null;
 
 /**
- * One row per student, with the mark, the per-strategy breakdown, and the
- * actual sequences — so the file is both a gradebook import and a record of
- * what each student wrote.
+ * One row per student, as values rather than text, so a spreadsheet can total
+ * and sort the marks instead of treating them as strings. Both the CSV and the
+ * Excel export are built from this, so the two can never disagree.
  */
-export function resultsToCsv(
+export function resultsToRows(
   results: StudentResult[],
   strategies: string[],
   totalMarks = DEFAULT_TOTAL_MARKS,
-): string {
-  const header = [
+): CellValue[][] {
+  const header: CellValue[] = [
     "Student name",
     "Student ID",
     `Mark (out of ${totalMarks})`,
@@ -111,12 +108,12 @@ export function resultsToCsv(
   const rows = results.map((result) => {
     const grade = gradeStudent(result, totalMarks);
 
-    const strategyCells = strategies.flatMap((strategy) => {
+    const strategyCells = strategies.flatMap((strategy): CellValue[] => {
       const entry = result.byStrategy[strategy];
       const mark = grade.perStrategy.find((m) => m.strategy === strategy);
-      if (!entry) return ["", "", "", ""];
+      if (!entry || !entry.score.answered) return [null, null, null, null];
       return [
-        mark ? formatMarks(roundToQuarter(mark.marks)) : "",
+        mark ? roundToQuarter(mark.marks) : null,
         `${entry.score.positionsCorrect}/${entry.score.positionsTotal}`,
         entry.score.actualFlat.join(" "),
         entry.score.expectedFlat.join(" "),
@@ -126,15 +123,35 @@ export function resultsToCsv(
     return [
       result.participant.name,
       result.participant.student_number,
-      formatMarks(grade.marks),
-      `${Math.round(grade.fraction * 100)}%`,
-      String(grade.exactCount),
+      grade.marks,
+      Math.round(grade.fraction * 100),
+      grade.exactCount,
       result.finalSubmittedAt ? new Date(result.finalSubmittedAt).toLocaleString() : "",
       result.isLate ? "LATE" : "",
-      result.completionSeconds === null ? "" : String(result.completionSeconds),
+      result.completionSeconds,
       ...strategyCells,
-    ];
+    ] satisfies CellValue[];
   });
 
-  return [header, ...rows].map((row) => row.map(csvCell).join(",")).join("\n");
+  return [header, ...rows];
+}
+
+function csvCell(value: CellValue): string {
+  const text = value === null || value === undefined ? "" : String(value);
+  return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+}
+
+export function resultsToCsv(
+  results: StudentResult[],
+  strategies: string[],
+  totalMarks = DEFAULT_TOTAL_MARKS,
+): string {
+  return resultsToRows(results, strategies, totalMarks)
+    .map((row) => row.map(csvCell).join(","))
+    .join("\n");
+}
+
+/** A filename that sorts sensibly and says which session it came from. */
+export function marksFilename(sessionCode: string, extension: string): string {
+  return `marks-${sessionCode}-${new Date().toISOString().slice(0, 10)}.${extension}`;
 }

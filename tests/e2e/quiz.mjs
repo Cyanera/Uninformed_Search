@@ -203,8 +203,13 @@ async function main() {
   check("marks are out of 5 by default", /\/\s*5/.test(marks), "");
   check("a class average is reported", /Class average/i.test(marks));
 
+  const excelDownload = page.waitForEvent("download", { timeout: 15000 });
+  await page.getByRole("button", { name: "Download Excel" }).click();
+  const excel = await excelDownload;
+  check("the Excel file downloads", excel.suggestedFilename().endsWith(".xlsx"), excel.suggestedFilename());
+
   const download = page.waitForEvent("download", { timeout: 15000 });
-  await page.getByRole("button", { name: "Download CSV" }).click();
+  await page.getByRole("button", { name: "CSV", exact: true }).click();
   const file = await download;
   const name = file.suggestedFilename();
   check("the CSV downloads", name.endsWith(".csv"), name);

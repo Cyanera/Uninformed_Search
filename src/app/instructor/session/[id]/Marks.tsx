@@ -2,7 +2,14 @@
 
 import { useState } from "react";
 import { Button, Card, cx } from "@/components/ui";
-import { DEFAULT_TOTAL_MARKS, formatMarks, gradeStudent, resultsToCsv } from "@/lib/grading";
+import {
+  DEFAULT_TOTAL_MARKS,
+  formatMarks,
+  gradeStudent,
+  marksFilename,
+  resultsToCsv,
+  resultsToRows,
+} from "@/lib/grading";
 import type { StudentResult } from "@/lib/analysis";
 import type { PublicSession } from "@/lib/types";
 
@@ -28,16 +35,32 @@ export function Marks({
     .map((result) => ({ result, grade: gradeStudent(result, total) }))
     .sort((a, b) => b.grade.marks - a.grade.marks || a.result.participant.name.localeCompare(b.result.participant.name));
 
-  function download() {
-    const csv = resultsToCsv(results, session.strategies, total);
-    // A BOM so Excel opens Arabic names and UTF-8 correctly.
-    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+  function save(blob: Blob, filename: string) {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `marks-${session.code}-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.download = filename;
     link.click();
     URL.revokeObjectURL(url);
+  }
+
+  async function downloadExcel() {
+    // Loaded on demand: no reason to carry a zip encoder on every page view.
+    const { buildXlsx } = await import("@/lib/xlsx");
+    const rows = resultsToRows(results, session.strategies, total);
+    const bytes = buildXlsx(rows, `Marks ${session.code}`);
+    save(
+      new Blob([new Uint8Array(bytes)], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      }),
+      marksFilename(session.code, "xlsx"),
+    );
+  }
+
+  function downloadCsv() {
+    const csv = resultsToCsv(results, session.strategies, total);
+    // A BOM so Excel opens Arabic names correctly if the CSV is used instead.
+    save(new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" }), marksFilename(session.code, "csv"));
   }
 
   if (!results.length) {
@@ -68,8 +91,11 @@ export function Marks({
               className="h-9 w-20 rounded border border-line-strong bg-paper px-2 text-sm"
             />
           </label>
-          <Button size="sm" variant="primary" onClick={download}>
-            Download CSV
+          <Button size="sm" variant="primary" onClick={downloadExcel}>
+            Download Excel
+          </Button>
+          <Button size="sm" onClick={downloadCsv}>
+            CSV
           </Button>
           <Button size="sm" onClick={() => window.print()}>
             Print
