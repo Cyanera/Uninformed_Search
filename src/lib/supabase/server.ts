@@ -25,8 +25,9 @@ export async function createClient() {
           try {
             cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options));
           } catch {
-            // Called from a Server Component; the middleware refreshes the
-            // session instead, so this is safe to ignore.
+            // Called from a Server Component, where cookies are read-only.
+            // Route handlers and Server Actions refresh the session instead,
+            // so a failure here is expected rather than a problem.
           }
         },
       },

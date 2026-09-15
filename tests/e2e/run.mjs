@@ -69,8 +69,41 @@ async function main() {
   await page.waitForURL(/\/instructor(\?|$)/, { timeout: 15000 });
   check("lands on the instructor home", page.url().includes("/instructor"));
 
+  /* ------------------------------------------- 3. changing the sign-in email */
+  console.log("\n[3] Changing the sign-in email");
+  check("the current email is shown", (await page.innerText("body")).includes("ahad@uj.edu.sa"));
+
+  await page.getByRole("button", { name: "Change email" }).click();
+  await page.getByLabel("New sign-in email").fill("ahad.almasoudi@gmail.com");
+  await page.getByLabel("Current password").fill("wrong-password");
+  await page.getByRole("button", { name: "Save email" }).click();
+  await page.waitForTimeout(1200);
+  check(
+    "the wrong password is refused",
+    /not your current password/i.test(await page.innerText("body")),
+    (await page.innerText("body")).slice(0, 200),
+  );
+
+  await page.getByLabel("Current password").fill("lecture2026");
+  await page.getByRole("button", { name: "Save email" }).click();
+  await page.waitForTimeout(2000);
+  await page.reload({ waitUntil: "networkidle" });
+  const afterChange = await page.innerText("body");
+  check("the new email is shown", afterChange.includes("ahad.almasoudi@gmail.com"), afterChange.slice(0, 200));
+  check("the old email is gone", !afterChange.includes("ahad@uj.edu.sa"));
+
+  // The point of the change: the new address is what signs in, with no
+  // confirmation email in the way.
+  await page.getByRole("button", { name: "Sign out" }).click();
+  await page.waitForURL(/\/instructor\/login/, { timeout: 15000 });
+  await page.getByLabel("Email").fill("ahad.almasoudi@gmail.com");
+  await page.getByLabel("Password").fill("lecture2026");
+  await page.getByRole("button", { name: "Sign in" }).click();
+  await page.waitForURL(/\/instructor(\?|$)/, { timeout: 15000 });
+  check("the new email signs in immediately", page.url().includes("/instructor"));
+
   /* -------------------------------------------------- 3. create session */
-  console.log("\n[3] Creating a session");
+  console.log("\n[4] Creating a session");
   await page.getByRole("button", { name: "Create session" }).click();
   await page.waitForURL(/\/instructor\/session\//, { timeout: 15000 });
   const body = await page.innerText("body");
@@ -81,7 +114,7 @@ async function main() {
   const sessionUrl = page.url();
 
   /* ------------------------------------------------ 4. students join */
-  console.log("\n[4] Three students join from their own devices");
+  console.log("\n[5] Three students join from their own devices");
   const students = [
     { name: "Norah Al-Harbi", id: "2210045", answers: { BFS, DFS, UCS } },
     { name: "Sara Al-Otaibi", id: "2210203", answers: { BFS, DFS, UCS: UCS_EARLY_STOP } },
@@ -108,7 +141,7 @@ async function main() {
   check("board counts three", /STUDENTS\s*\n+\s*3/i.test(board), board.match(/STUDENTS[\s\S]{0,20}/i)?.[0]);
 
   /* ------------------------------------------- 5. answering is blocked */
-  console.log("\n[5] Before the instructor starts");
+  console.log("\n[6] Before the instructor starts");
   const firstStudent = pages[0].page;
   const lobbyText = await firstStudent.innerText("body");
   check("students are told to wait", lobbyText.includes("Waiting for your instructor"));
@@ -116,7 +149,7 @@ async function main() {
   check("node buttons are disabled in the lobby", disabled);
 
   /* ------------------------------------------------- 6. start and answer */
-  console.log("\n[6] Activity running");
+  console.log("\n[7] Activity running");
   await page.getByRole("button", { name: "Start Activity" }).click();
   await page.waitForTimeout(1500);
 
@@ -160,14 +193,14 @@ async function main() {
   check("final submission recorded", (await ids.innerText("body")).includes("All answers submitted"));
 
   /* ---------------------------------------------------- 7. live board */
-  console.log("\n[7] Instructor's live board");
+  console.log("\n[8] Instructor's live board");
   await page.reload({ waitUntil: "networkidle" });
   const live = await page.innerText("body");
   check("progress is shown", live.includes("Submitted"), live.slice(0, 300));
   check("correctness is hidden before reveal", !live.includes("Exact match"));
 
   /* ------------------------------------------------------- 8. analytics */
-  console.log("\n[8] Reveal results and analytics");
+  console.log("\n[9] Reveal results and analytics");
   await page.getByRole("button", { name: "Reveal Results" }).click();
   await page.waitForTimeout(2000);
   await page.reload({ waitUntil: "networkidle" });
@@ -181,7 +214,7 @@ async function main() {
   check("student x strategy matrix present", analytics.includes("Student × strategy"));
 
   /* ------------------------------------------------------ 9. inspection */
-  console.log("\n[9] Inspecting one student");
+  console.log("\n[10] Inspecting one student");
   await page.getByRole("tab", { name: "Live" }).click();
   await page.waitForTimeout(500);
   await page.getByText("Sara Al-Otaibi").first().click();
@@ -201,7 +234,7 @@ async function main() {
   );
 
   /* ------------------------------------------------------ 10. teach mode */
-  console.log("\n[10] Teach Mode");
+  console.log("\n[11] Teach Mode");
   await page.getByRole("button", { name: /Back to the list/ }).click();
   await page.waitForTimeout(300);
   await page.getByRole("tab", { name: "Teach Mode" }).click();

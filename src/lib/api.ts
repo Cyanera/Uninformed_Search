@@ -28,6 +28,21 @@ export function cleanText(value: unknown, maxLength: number): string {
   return value.trim().replace(/\s+/g, " ").slice(0, maxLength);
 }
 
+const MAX_EMAIL = 254;
+
+/**
+ * Normalize an email address, or null if it is obviously not one. Deliberately
+ * permissive — the auth service is the real validator, this only catches the
+ * typo before a round trip.
+ */
+export function cleanEmail(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const email = value.trim().toLowerCase();
+  if (!email || email.length > MAX_EMAIL) return null;
+  if (!/^[^\s@]+@[^\s@.]+(\.[^\s@.]+)+$/.test(email)) return null;
+  return email;
+}
+
 const MAX_SEQUENCE = 400;
 const MAX_ITERATIONS = 24;
 

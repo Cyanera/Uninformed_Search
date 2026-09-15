@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { isMissingTableError } from "@/lib/supabase/errors";
 import { createClient } from "@/lib/supabase/server";
+import { AccountEmail } from "./AccountEmail";
 import { CreateSessionForm } from "./CreateSessionForm";
 import { SignOutButton } from "./SignOutButton";
 import { Badge } from "@/components/ui";
@@ -60,7 +61,7 @@ export default async function InstructorHome() {
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Uninformed Search Activity</h1>
-          <p className="mt-1 text-sm text-ink-muted">{user?.email}</p>
+          <AccountEmail email={user.email ?? ""} />
         </div>
         <SignOutButton />
       </header>

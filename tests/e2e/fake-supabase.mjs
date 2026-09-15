@@ -225,15 +225,23 @@ async function handleAuth(req, res, url) {
 
     if (req.method === "PUT" && id) {
       const body = await readBody(req);
-      const { rows } = await client.query(
-        `update auth.users
-         set encrypted_password = coalesce($2, encrypted_password),
-             email_confirmed_at = case when $3 then now() else email_confirmed_at end
-         where id = $1 returning id, email, created_at, email_confirmed_at`,
-        [id, body.password ?? null, !!body.email_confirm],
-      );
-      if (!rows.length) return json(res, 404, { message: "user not found" });
-      return json(res, 200, rows[0]);
+      try {
+        const { rows } = await client.query(
+          `update auth.users
+           set email = coalesce($2, email),
+               encrypted_password = coalesce($3, encrypted_password),
+               email_confirmed_at = case when $4 then now() else email_confirmed_at end
+           where id = $1 returning id, email, created_at, email_confirmed_at`,
+          [id, body.email ?? null, body.password ?? null, !!body.email_confirm],
+        );
+        if (!rows.length) return json(res, 404, { message: "user not found" });
+        return json(res, 200, rows[0]);
+      } catch (error) {
+        // 23505 is the unique violation on auth.users.email; GoTrue reports the
+        // clash as a 422 with a msg field.
+        if (error.code === "23505") return json(res, 422, { msg: "A user with this email address has already been registered" });
+        throw error;
+      }
     }
   }
 
@@ -263,7 +271,14 @@ async function handleAuth(req, res, url) {
   if (path === "/user" && req.method === "GET") {
     const user = userFromRequest(req);
     if (!user) return json(res, 401, { message: "invalid claim" });
-    return json(res, 200, user);
+    // Read the row back rather than replaying the cached copy, so a change made
+    // through the admin API (an email change, say) is visible to this session -
+    // which is what real GoTrue does.
+    const { rows } = await client.query(
+      "select id, email, created_at from auth.users where id = $1",
+      [user.id],
+    );
+    return json(res, 200, rows.length ? { ...user, ...rows[0] } : user);
   }
 
   if (path === "/logout") {
