@@ -198,7 +198,26 @@ function userFromRequest(req) {
   return sessions.get(token) ?? null;
 }
 
+/**
+ * Every auth handler goes through one error boundary. Without it an
+ * unhandled rejection - a duplicate email is the easy way to cause one - kills
+ * the whole fake server mid-run, and the failure surfaces as an unrelated
+ * timeout several checks later.
+ */
 async function handleAuth(req, res, url) {
+  try {
+    return await handleAuthRoute(req, res, url);
+  } catch (error) {
+    // 23505 is the unique violation on auth.users.email; GoTrue reports that
+    // clash as a 422 with a msg field.
+    if (error.code === "23505") {
+      return json(res, 422, { msg: "A user with this email address has already been registered" });
+    }
+    return json(res, 500, { msg: error.message });
+  }
+}
+
+async function handleAuthRoute(req, res, url) {
   const path = url.pathname.replace("/auth/v1", "");
 
   if (path.startsWith("/admin/users")) {
@@ -225,23 +244,16 @@ async function handleAuth(req, res, url) {
 
     if (req.method === "PUT" && id) {
       const body = await readBody(req);
-      try {
-        const { rows } = await client.query(
-          `update auth.users
-           set email = coalesce($2, email),
-               encrypted_password = coalesce($3, encrypted_password),
-               email_confirmed_at = case when $4 then now() else email_confirmed_at end
-           where id = $1 returning id, email, created_at, email_confirmed_at`,
-          [id, body.email ?? null, body.password ?? null, !!body.email_confirm],
-        );
-        if (!rows.length) return json(res, 404, { message: "user not found" });
-        return json(res, 200, rows[0]);
-      } catch (error) {
-        // 23505 is the unique violation on auth.users.email; GoTrue reports the
-        // clash as a 422 with a msg field.
-        if (error.code === "23505") return json(res, 422, { msg: "A user with this email address has already been registered" });
-        throw error;
-      }
+      const { rows } = await client.query(
+        `update auth.users
+         set email = coalesce($2, email),
+             encrypted_password = coalesce($3, encrypted_password),
+             email_confirmed_at = case when $4 then now() else email_confirmed_at end
+         where id = $1 returning id, email, created_at, email_confirmed_at`,
+        [id, body.email ?? null, body.password ?? null, !!body.email_confirm],
+      );
+      if (!rows.length) return json(res, 404, { message: "user not found" });
+      return json(res, 200, rows[0]);
     }
   }
 

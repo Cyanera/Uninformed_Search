@@ -1,6 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanEmail } from "@/lib/api";
-import { gotrueHeaders, isConfirmed, listAdminUsers, updateAdminUser } from "@/lib/supabase/gotrue";
+import {
+  createAdminUser,
+  gotrueHeaders,
+  isConfirmed,
+  isEmailTaken,
+  listAdminUsers,
+  updateAdminUser,
+} from "@/lib/supabase/gotrue";
 
 describe("cleanEmail", () => {
   it("normalizes case and surrounding space", () => {
@@ -58,7 +65,7 @@ describe("the auth admin calls", () => {
       email_confirm: true,
     });
 
-    expect(result).toEqual({ ok: true });
+    expect(result.ok).toBe(true);
     const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toBe("https://p.supabase.co/auth/v1/admin/users/u1");
     expect(init.method).toBe("PUT");
@@ -101,5 +108,61 @@ describe("the auth admin calls", () => {
       vi.fn(async () => new Response(JSON.stringify({ users: [{ id: "u1", email: "a@b.com" }] }), { status: 200 })),
     );
     expect(await listAdminUsers("https://p.supabase.co", "key")).toEqual([{ id: "u1", email: "a@b.com" }]);
+  });
+});
+
+describe("createAdminUser", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("creates a confirmed account, so there is no email to wait on", async () => {
+    const fetchMock = vi.fn(
+      async () => new Response(JSON.stringify({ id: "u2", email: "s@uj.edu.sa" }), { status: 200 }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await createAdminUser("https://p.supabase.co", "key", "s@uj.edu.sa", "secret123");
+
+    expect(result).toEqual({ ok: true, user: { id: "u2", email: "s@uj.edu.sa" } });
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe("https://p.supabase.co/auth/v1/admin/users");
+    expect(init.method).toBe("POST");
+    expect(JSON.parse(String(init.body))).toEqual({
+      email: "s@uj.edu.sa",
+      password: "secret123",
+      email_confirm: true,
+    });
+  });
+
+  it("reports a clash instead of silently doing nothing", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(JSON.stringify({ msg: "A user with this email address has already been registered" }), {
+            status: 422,
+          }),
+      ),
+    );
+    const result = await createAdminUser("https://p.supabase.co", "key", "taken@uj.edu.sa", "secret123");
+    expect(result.ok).toBe(false);
+    expect(result.ok === false && isEmailTaken(result.error)).toBe(true);
+  });
+});
+
+describe("isEmailTaken", () => {
+  it("recognises the ways GoTrue words a clash", () => {
+    for (const message of [
+      "A user with this email address has already been registered",
+      "Email address already exists",
+      "duplicate key value violates unique constraint users_email_key",
+    ]) {
+      expect(isEmailTaken(message)).toBe(true);
+    }
+  });
+
+  it("does not mistake an unrelated failure for a clash", () => {
+    for (const message of ["Password should be at least 6 characters", "gateway down", "ECONNREFUSED"]) {
+      expect(isEmailTaken(message)).toBe(false);
+    }
   });
 });

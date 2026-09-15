@@ -2,7 +2,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { cleanText, fail, ok, readJson } from "@/lib/api";
 import { MIGRATION_SQL, SEED_SQL } from "@/lib/setup/schema.generated";
 import { isTransactionPooler, pgOptions } from "@/lib/setup/connection";
-import { gotrueHeaders, isConfirmed, listAdminUsers, updateAdminUser } from "@/lib/supabase/gotrue";
+import { createAdminUser, isConfirmed, listAdminUsers, updateAdminUser } from "@/lib/supabase/gotrue";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -196,16 +196,11 @@ export async function POST(request: Request) {
     return ok({ completed: true, steps, email });
   }
 
-  const res = await fetch(`${url}/auth/v1/admin/users`, {
-    method: "POST",
-    headers: gotrueHeaders(key),
-    // Confirmed immediately: nobody should be waiting on an email minutes
-    // before a lecture.
-    body: JSON.stringify({ email, password, email_confirm: true }),
-  });
-
-  if (!res.ok) {
-    return fail(`The database is ready, but the account could not be created: ${await res.text()}`, 500);
+  // Confirmed immediately: nobody should be waiting on an email minutes before
+  // a lecture.
+  const created = await createAdminUser(url, key, email, password);
+  if (!created.ok) {
+    return fail(`The database is ready, but the account could not be created: ${created.error}`, 500);
   }
   steps.push(`Created your instructor account (${email}), already confirmed.`);
 

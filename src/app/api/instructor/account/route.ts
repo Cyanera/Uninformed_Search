@@ -1,8 +1,6 @@
-import { createClient as createPlainClient } from "@supabase/supabase-js";
 import { cleanEmail, fail, ok, readJson } from "@/lib/api";
-import { createClient } from "@/lib/supabase/server";
-import { resolveSupabaseUrl } from "@/lib/supabase/config";
-import { updateAdminUser } from "@/lib/supabase/gotrue";
+import { isEmailTaken, updateAdminUser } from "@/lib/supabase/gotrue";
+import { passwordIsCorrect, requireInstructor } from "@/lib/supabase/instructor";
 
 export const dynamic = "force-dynamic";
 
@@ -28,11 +26,9 @@ interface Body {
 }
 
 export async function POST(request: Request) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return fail("Sign in first.", 401);
+  const guard = await requireInstructor();
+  if (!guard.ok) return guard.response;
+  const { instructor } = guard;
 
   const body = (await readJson<Body>(request)) ?? {};
 
@@ -42,32 +38,20 @@ export async function POST(request: Request) {
   const password = typeof body.password === "string" ? body.password : "";
   if (!password) return fail("Enter your current password to confirm the change.");
 
-  const url = resolveSupabaseUrl(process.env.NEXT_PUBLIC_SUPABASE_URL);
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !anonKey || !serviceKey) {
-    return fail("This deployment is not fully configured. Open /api/health for a report.", 500);
-  }
-
-  if (user.email?.toLowerCase() === email) {
+  if (instructor.email.toLowerCase() === email) {
     return ok({ email, changed: false });
   }
 
-  // Re-authenticate on a throwaway client so verifying the password cannot
-  // disturb the cookies of the session making the request.
-  const verifier = createPlainClient(url, anonKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-  const { error: passwordError } = await verifier.auth.signInWithPassword({
-    email: user.email ?? "",
-    password,
-  });
-  if (passwordError) return fail("That is not your current password.", 403);
+  if (!(await passwordIsCorrect(instructor, password))) {
+    return fail("That is not your current password.", 403);
+  }
 
-  const updated = await updateAdminUser(url, serviceKey, user.id, { email, email_confirm: true });
+  const updated = await updateAdminUser(instructor.url, instructor.serviceKey, instructor.id, {
+    email,
+    email_confirm: true,
+  });
   if (!updated.ok) {
-    const message = updated.error.toLowerCase();
-    if (message.includes("already") || message.includes("registered") || message.includes("exists")) {
+    if (isEmailTaken(updated.error)) {
       return fail("Another account already uses that email address.", 409);
     }
     return fail(`Supabase refused the change: ${updated.error}`, 502);

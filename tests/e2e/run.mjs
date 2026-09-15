@@ -102,8 +102,65 @@ async function main() {
   await page.waitForURL(/\/instructor(\?|$)/, { timeout: 15000 });
   check("the new email signs in immediately", page.url().includes("/instructor"));
 
+  /* --------------------------------------------- 4. adding a second teacher */
+  console.log("\n[4] Adding a second instructor");
+  // The list is fetched after the page renders, so wait for it rather than
+  // racing it.
+  await page.getByText("(you)").waitFor({ timeout: 10000 }).catch(() => {});
+  check("the account list shows the signed-in instructor", (await page.innerText("body")).includes("(you)"));
+
+  await page.getByRole("button", { name: "Add an instructor" }).click();
+  await page.getByLabel("Their email").fill("smalgamdi@uj.edu.sa");
+  await page.getByLabel("Password for them").fill("12345");
+  await page.getByLabel("Your own password").fill("lecture2026");
+  await page.getByRole("button", { name: "Create account" }).click();
+  await page.waitForTimeout(1000);
+  check(
+    "a password under six characters is refused",
+    /at least 6 characters/i.test(await page.innerText("body")),
+    (await page.innerText("body")).slice(0, 200),
+  );
+
+  await page.getByLabel("Password for them").fill("123456");
+  await page.getByLabel("Your own password").fill("not-my-password");
+  await page.getByRole("button", { name: "Create account" }).click();
+  await page.waitForTimeout(1200);
+  check("the wrong confirming password is refused", /not your password/i.test(await page.innerText("body")));
+
+  await page.getByLabel("Your own password").fill("lecture2026");
+  await page.getByRole("button", { name: "Create account" }).click();
+  await page.waitForTimeout(2000);
+  const addedText = await page.innerText("body");
+  check("the new instructor is listed", addedText.includes("smalgamdi@uj.edu.sa"), addedText.slice(0, 300));
+  check("the new instructor can sign in", /can sign in now/i.test(addedText));
+
+  // Adding the same address twice is a mistake worth naming, not a silent
+  // second account.
+  await page.getByRole("button", { name: "Add an instructor" }).click();
+  await page.getByLabel("Their email").fill("smalgamdi@uj.edu.sa");
+  await page.getByLabel("Password for them").fill("123456");
+  await page.getByLabel("Your own password").fill("lecture2026");
+  await page.getByRole("button", { name: "Create account" }).click();
+  await page.waitForTimeout(1500);
+  check("a duplicate address is refused", /already exists/i.test(await page.innerText("body")));
+  await page.getByRole("button", { name: "Cancel" }).click();
+
+  // The point of all of it: the colleague signs in with no email in the way,
+  // and sees an empty session list rather than anybody else's class.
+  const colleagueContext = await browser.newContext();
+  const colleague = await colleagueContext.newPage();
+  await colleague.goto(`${APP}/instructor/login`, { waitUntil: "networkidle" });
+  await colleague.getByLabel("Email").fill("smalgamdi@uj.edu.sa");
+  await colleague.getByLabel("Password").fill("123456");
+  await colleague.getByRole("button", { name: "Sign in" }).click();
+  await colleague.waitForURL(/\/instructor(\?|$)/, { timeout: 15000 });
+  check("the second instructor signs in straight away", colleague.url().includes("/instructor"));
+  const colleagueText = await colleague.innerText("body");
+  check("the second instructor sees no sessions of her own yet", colleagueText.includes("No sessions yet"));
+  await colleagueContext.close();
+
   /* -------------------------------------------------- 3. create session */
-  console.log("\n[4] Creating a session");
+  console.log("\n[5] Creating a session");
   await page.getByRole("button", { name: "Create session" }).click();
   await page.waitForURL(/\/instructor\/session\//, { timeout: 15000 });
   const body = await page.innerText("body");
@@ -114,7 +171,7 @@ async function main() {
   const sessionUrl = page.url();
 
   /* ------------------------------------------------ 4. students join */
-  console.log("\n[5] Three students join from their own devices");
+  console.log("\n[6] Three students join from their own devices");
   const students = [
     { name: "Norah Al-Harbi", id: "2210045", answers: { BFS, DFS, UCS } },
     { name: "Sara Al-Otaibi", id: "2210203", answers: { BFS, DFS, UCS: UCS_EARLY_STOP } },
@@ -141,7 +198,7 @@ async function main() {
   check("board counts three", /STUDENTS\s*\n+\s*3/i.test(board), board.match(/STUDENTS[\s\S]{0,20}/i)?.[0]);
 
   /* ------------------------------------------- 5. answering is blocked */
-  console.log("\n[6] Before the instructor starts");
+  console.log("\n[7] Before the instructor starts");
   const firstStudent = pages[0].page;
   const lobbyText = await firstStudent.innerText("body");
   check("students are told to wait", lobbyText.includes("Waiting for your instructor"));
@@ -149,7 +206,7 @@ async function main() {
   check("node buttons are disabled in the lobby", disabled);
 
   /* ------------------------------------------------- 6. start and answer */
-  console.log("\n[7] Activity running");
+  console.log("\n[8] Activity running");
   await page.getByRole("button", { name: "Start Activity" }).click();
   await page.waitForTimeout(1500);
 
@@ -193,14 +250,14 @@ async function main() {
   check("final submission recorded", (await ids.innerText("body")).includes("All answers submitted"));
 
   /* ---------------------------------------------------- 7. live board */
-  console.log("\n[8] Instructor's live board");
+  console.log("\n[9] Instructor's live board");
   await page.reload({ waitUntil: "networkidle" });
   const live = await page.innerText("body");
   check("progress is shown", live.includes("Submitted"), live.slice(0, 300));
   check("correctness is hidden before reveal", !live.includes("Exact match"));
 
   /* ------------------------------------------------------- 8. analytics */
-  console.log("\n[9] Reveal results and analytics");
+  console.log("\n[10] Reveal results and analytics");
   await page.getByRole("button", { name: "Reveal Results" }).click();
   await page.waitForTimeout(2000);
   await page.reload({ waitUntil: "networkidle" });
@@ -214,7 +271,7 @@ async function main() {
   check("student x strategy matrix present", analytics.includes("Student × strategy"));
 
   /* ------------------------------------------------------ 9. inspection */
-  console.log("\n[10] Inspecting one student");
+  console.log("\n[11] Inspecting one student");
   await page.getByRole("tab", { name: "Live" }).click();
   await page.waitForTimeout(500);
   await page.getByText("Sara Al-Otaibi").first().click();
@@ -234,7 +291,7 @@ async function main() {
   );
 
   /* ------------------------------------------------------ 10. teach mode */
-  console.log("\n[11] Teach Mode");
+  console.log("\n[12] Teach Mode");
   await page.getByRole("button", { name: /Back to the list/ }).click();
   await page.waitForTimeout(300);
   await page.getByRole("tab", { name: "Teach Mode" }).click();

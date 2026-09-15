@@ -5,6 +5,7 @@ import { isMissingTableError } from "@/lib/supabase/errors";
 import { createClient } from "@/lib/supabase/server";
 import { AccountEmail } from "./AccountEmail";
 import { CreateSessionForm } from "./CreateSessionForm";
+import { Instructors } from "./Instructors";
 import { SignOutButton } from "./SignOutButton";
 import { Badge } from "@/components/ui";
 import { formatDuration } from "@/lib/timer";
@@ -106,6 +107,8 @@ export default async function InstructorHome() {
           </ul>
         )}
       </section>
+
+      <Instructors />
     </main>
   );
 }

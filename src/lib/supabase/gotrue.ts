@@ -44,35 +44,78 @@ export async function listAdminUsers(url: string, key: string): Promise<AdminUse
   }
 }
 
-/**
- * Change one account. `email_confirm: true` applies a new address immediately
- * rather than mailing a confirmation link to it.
- */
-export async function updateAdminUser(
+export type AdminResult = { ok: true; user: AdminUser | null } | { ok: false; error: string };
+
+async function adminWrite(
   url: string,
   key: string,
-  userId: string,
-  changes: Record<string, unknown>,
-): Promise<{ ok: true } | { ok: false; error: string }> {
+  path: string,
+  method: "POST" | "PUT",
+  body: Record<string, unknown>,
+): Promise<AdminResult> {
   let res: Response;
   try {
-    res = await fetch(`${url}/auth/v1/admin/users/${userId}`, {
-      method: "PUT",
+    res = await fetch(`${url}/auth/v1/admin/${path}`, {
+      method,
       headers: gotrueHeaders(key),
-      body: JSON.stringify(changes),
+      body: JSON.stringify(body),
     });
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Could not reach Supabase." };
   }
 
-  if (res.ok) return { ok: true };
+  const text = await res.text().catch(() => "");
+
+  if (res.ok) {
+    try {
+      return { ok: true, user: JSON.parse(text) as AdminUser };
+    } catch {
+      return { ok: true, user: null };
+    }
+  }
 
   // GoTrue reports failures as JSON, but not always; fall back to the raw body.
-  const text = await res.text().catch(() => "");
   try {
-    const body = JSON.parse(text) as { msg?: string; message?: string; error_description?: string };
-    return { ok: false, error: body.msg ?? body.message ?? body.error_description ?? text };
+    const parsed = JSON.parse(text) as { msg?: string; message?: string; error_description?: string };
+    return { ok: false, error: parsed.msg ?? parsed.message ?? parsed.error_description ?? text };
   } catch {
     return { ok: false, error: text || `Supabase returned ${res.status}.` };
   }
+}
+
+/**
+ * Change one account. `email_confirm: true` applies a new address immediately
+ * rather than mailing a confirmation link to it.
+ */
+export function updateAdminUser(
+  url: string,
+  key: string,
+  userId: string,
+  changes: Record<string, unknown>,
+): Promise<AdminResult> {
+  return adminWrite(url, key, `users/${userId}`, "PUT", changes);
+}
+
+/**
+ * Create an account that can be signed in to straight away. Creating one this
+ * way skips the confirmation email entirely, which is the point: its link
+ * points at the project's Site URL, and nobody should meet that before a class.
+ */
+export function createAdminUser(
+  url: string,
+  key: string,
+  email: string,
+  password: string,
+): Promise<AdminResult> {
+  return adminWrite(url, key, "users", "POST", { email, password, email_confirm: true });
+}
+
+/**
+ * Does GoTrue's refusal mean the address is already taken? It words this
+ * several ways, and sometimes passes the database's unique-violation text
+ * through unchanged.
+ */
+export function isEmailTaken(error: string): boolean {
+  const message = error.toLowerCase();
+  return ["already", "registered", "exists", "duplicate"].some((word) => message.includes(word));
 }
